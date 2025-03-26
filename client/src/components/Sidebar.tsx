@@ -12,7 +12,7 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
 
   const navigation = [
     { name: "Dashboard", href: "/", icon: "dashboard" },
-    { name: "Create Prompt", href: "/prompt-creator", icon: "edit_note" },
+    { name: "Create Meta Prompt", href: "/prompt-creator", icon: "edit_note" },
     { name: "Evaluations", href: "/evaluations", icon: "analytics" },
     { name: "Datasets", href: "/datasets", icon: "storage" },
     { name: "Prompt History", href: "/prompt-history", icon: "history" },
