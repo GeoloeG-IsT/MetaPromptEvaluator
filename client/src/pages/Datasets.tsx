@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Dataset, DatasetItem } from "@shared/schema";
@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow } from "date-fns";
 import { queryClient } from "@/lib/queryClient";
 
@@ -51,6 +52,41 @@ export default function Datasets() {
     validResponse: "",
   });
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  
+  // Handle clipboard paste for images
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!isAddItemDialogOpen || newDatasetItem.inputType !== 'image') return;
+      
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile();
+          if (blob) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              if (event.target?.result) {
+                setUploadedImage(event.target.result as string);
+                toast({
+                  title: "Image pasted",
+                  description: "Image from clipboard has been added."
+                });
+              }
+            };
+            reader.readAsDataURL(blob);
+            break;
+          }
+        }
+      }
+    };
+    
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [isAddItemDialogOpen, newDatasetItem.inputType]);
   
   // Fetch datasets
   const { data: datasets, isLoading } = useQuery<Dataset[]>({
@@ -269,7 +305,7 @@ export default function Datasets() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>ID</TableHead>
-                    <TableHead>Image</TableHead>
+                    <TableHead>Input</TableHead>
                     <TableHead>Valid Response</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -279,9 +315,27 @@ export default function Datasets() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.id}</TableCell>
                       <TableCell>
-                        <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
-                          <span className="material-icons text-gray-400">image</span>
-                        </div>
+                        {item.inputType === 'text' ? (
+                          <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
+                            <span className="material-icons text-gray-400">text_fields</span>
+                          </div>
+                        ) : item.inputImage ? (
+                          <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                            <img 
+                              src={item.inputImage} 
+                              alt="Input" 
+                              className="max-h-full max-w-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = '';
+                                e.currentTarget.parentElement.innerHTML = '<span class="material-icons text-gray-400">broken_image</span>';
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
+                            <span className="material-icons text-gray-400">image</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="max-w-md">
                         <div className="truncate">{item.validResponse}</div>
@@ -416,7 +470,7 @@ export default function Datasets() {
       
       {/* Add Dataset Item Dialog */}
       <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add Dataset Item</DialogTitle>
             <DialogDescription>
@@ -425,19 +479,135 @@ export default function Datasets() {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label htmlFor="inputImage" className="text-sm font-medium">
-                Input Image URL
-              </label>
-              <Input
-                id="inputImage"
-                value={newDatasetItem.inputImage}
-                onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputImage: e.target.value })}
-                placeholder="e.g., https://example.com/image.jpg"
-              />
-            </div>
+            <Tabs 
+              defaultValue="text" 
+              value={newDatasetItem.inputType}
+              onValueChange={(value) => setNewDatasetItem({ ...newDatasetItem, inputType: value })}
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="text">Text Input</TabsTrigger>
+                <TabsTrigger value="image">Image Input</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="text" className="pt-4">
+                <div className="space-y-2">
+                  <label htmlFor="inputText" className="text-sm font-medium">
+                    Input Text
+                  </label>
+                  <Textarea
+                    id="inputText"
+                    value={newDatasetItem.inputText}
+                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputText: e.target.value })}
+                    placeholder="Enter the input text to test with"
+                    rows={3}
+                  />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="image" className="pt-4 space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="inputImage" className="text-sm font-medium">
+                    Image URL
+                  </label>
+                  <Input
+                    id="inputImage"
+                    value={newDatasetItem.inputImage}
+                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputImage: e.target.value })}
+                    placeholder="e.g., https://example.com/image.jpg"
+                  />
+                </div>
+                
+                <div 
+                  className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => document.getElementById('imageUpload')?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.add('border-blue-500');
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove('border-blue-500');
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove('border-blue-500');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0 && files[0].type.startsWith('image/')) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        if (event.target?.result) {
+                          setUploadedImage(event.target.result as string);
+                        }
+                      };
+                      reader.readAsDataURL(files[0]);
+                    }
+                  }}
+                >
+                  <input 
+                    type="file" 
+                    id="imageUpload" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          if (event.target?.result) {
+                            setUploadedImage(event.target.result as string);
+                          }
+                        };
+                        reader.readAsDataURL(e.target.files[0]);
+                      }
+                    }} 
+                  />
+                  
+                  {uploadedImage ? (
+                    <div className="relative">
+                      <img 
+                        src={uploadedImage} 
+                        alt="Uploaded" 
+                        className="max-h-48 mx-auto"
+                        onError={() => {
+                          toast({
+                            title: "Image load error",
+                            description: "Could not load the image. Please try another.",
+                            variant: "destructive",
+                          });
+                          setUploadedImage(null);
+                        }}
+                      />
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="absolute top-2 right-2 h-8 w-8 p-0 rounded-full bg-white/80"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadedImage(null);
+                        }}
+                      >
+                        <span className="material-icons text-sm">close</span>
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="material-icons text-3xl text-gray-400">photo</span>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Drag & drop an image here, or click to select
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        You can also paste images directly from your clipboard
+                      </p>
+                    </>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
             
-            <div className="space-y-2">
+            <div className="space-y-2 pt-4">
               <label htmlFor="validResponse" className="text-sm font-medium">
                 Valid Response
               </label>
@@ -459,7 +629,8 @@ export default function Datasets() {
               onClick={handleAddDatasetItem}
               disabled={
                 addDatasetItemMutation.isPending || 
-                !newDatasetItem.inputImage || 
+                (newDatasetItem.inputType === "text" && !newDatasetItem.inputText) ||
+                (newDatasetItem.inputType === "image" && !newDatasetItem.inputImage && !uploadedImage) ||
                 !newDatasetItem.validResponse
               }
             >
