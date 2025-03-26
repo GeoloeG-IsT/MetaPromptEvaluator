@@ -110,7 +110,7 @@ export default function PromptCreator() {
     <div>
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-dark">Create Meta Prompt</h2>
-        <p className="text-gray-500">Design a meta prompt that generates detailed prompts from initial user input</p>
+        <p className="text-gray-500">Enter your meta prompt to generate a personalized prompt for users</p>
       </div>
 
       <MetaPromptForm onSavePrompt={handleSavePrompt} />
