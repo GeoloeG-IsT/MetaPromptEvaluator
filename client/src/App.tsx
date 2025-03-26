@@ -6,8 +6,6 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Evaluations from "@/pages/Evaluations";
 import Datasets from "@/pages/Datasets";
-import PromptHistory from "@/pages/PromptHistory";
-import Settings from "@/pages/Settings";
 import Sidebar from "@/components/Sidebar";
 import { useState } from "react";
 
@@ -47,8 +45,6 @@ function App() {
               <Route path="/" component={Dashboard} />
               <Route path="/evaluations" component={Evaluations} />
               <Route path="/datasets" component={Datasets} />
-              <Route path="/prompt-history" component={PromptHistory} />
-              <Route path="/settings" component={Settings} />
               <Route component={NotFound} />
             </Switch>
           </div>

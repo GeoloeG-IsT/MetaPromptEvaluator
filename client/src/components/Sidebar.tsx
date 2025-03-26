@@ -11,11 +11,9 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
   const { user } = useUser();
 
   const navigation = [
-    { name: "Dashboard", href: "/", icon: "dashboard" },
-    { name: "Evaluations", href: "/evaluations", icon: "analytics" },
+    { name: "MetaPrompts", href: "/", icon: "psychology" },
     { name: "Datasets", href: "/datasets", icon: "storage" },
-    { name: "Prompt History", href: "/prompt-history", icon: "history" },
-    { name: "Settings", href: "/settings", icon: "settings" },
+    { name: "Evaluations", href: "/evaluations", icon: "analytics" },
   ];
 
   return (
@@ -41,23 +39,22 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
               
             return (
               <li key={item.name}>
-                <Link href={item.href}>
-                  <a 
-                    className={`flex items-center px-4 py-2 ${
-                      isActive 
-                        ? "text-primary bg-indigo-50 border-l-4 border-primary font-medium" 
-                        : "hover:bg-gray-50"
-                    }`}
-                    onClick={() => {
-                      if (window.innerWidth < 768) {
-                        onClose();
-                      }
-                    }}
-                  >
-                    <span className="material-icons mr-3">{item.icon}</span>
-                    {item.name}
-                  </a>
-                </Link>
+                <div
+                  className={`flex items-center px-4 py-2 cursor-pointer ${
+                    isActive 
+                      ? "text-primary bg-indigo-50 border-l-4 border-primary font-medium" 
+                      : "hover:bg-gray-50"
+                  }`}
+                  onClick={() => {
+                    if (window.innerWidth < 768) {
+                      onClose();
+                    }
+                    window.location.href = item.href;
+                  }}
+                >
+                  <span className="material-icons mr-3">{item.icon}</span>
+                  {item.name}
+                </div>
               </li>
             );
           })}

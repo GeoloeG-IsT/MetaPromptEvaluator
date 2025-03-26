@@ -191,7 +191,16 @@ export class MemStorage implements IStorage {
   // Dataset item operations
   async createDatasetItem(insertItem: InsertDatasetItem): Promise<DatasetItem> {
     const id = this.currentDatasetItemId++;
-    const item: DatasetItem = { ...insertItem, id };
+    
+    // Set default values for new fields
+    const defaultedItem = {
+      ...insertItem,
+      inputType: insertItem.inputType || 'image',
+      inputText: insertItem.inputText || null,
+      inputImage: insertItem.inputImage || null
+    };
+    
+    const item: DatasetItem = { ...defaultedItem, id };
     this.datasetItems.set(id, item);
     
     // Update dataset item count

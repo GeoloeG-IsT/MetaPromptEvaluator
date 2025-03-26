@@ -120,9 +120,17 @@ export class DatabaseStorage implements IStorage {
   
   // Dataset item operations
   async createDatasetItem(item: InsertDatasetItem): Promise<DatasetItem> {
+    // Set default values for new fields
+    const defaultedItem = {
+      ...item,
+      inputType: item.inputType || 'image',
+      inputText: item.inputText || null,
+      inputImage: item.inputImage || null
+    };
+
     // Start a transaction to create the item and update dataset item count
     const result = await db.transaction(async (tx) => {
-      const [insertedItem] = await tx.insert(datasetItems).values(item).returning();
+      const [insertedItem] = await tx.insert(datasetItems).values(defaultedItem).returning();
       
       // Update the dataset item count
       await tx.update(datasets)
