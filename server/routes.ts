@@ -153,6 +153,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch dataset" });
     }
   });
+  
+  // Delete dataset
+  app.delete("/api/datasets/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // First, get all dataset items and delete them
+      const datasetItems = await storage.getDatasetItems(id);
+      for (const item of datasetItems) {
+        await storage.deleteDatasetItem(item.id);
+      }
+      
+      // Then delete the dataset itself
+      const success = await storage.deleteDataset(id);
+      
+      if (success) {
+        res.status(200).json({ message: "Dataset deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Dataset not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete dataset" });
+    }
+  });
 
   // Dataset items
   app.post("/api/dataset-items", async (req: Request, res: Response) => {
@@ -176,6 +200,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(datasetItems);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch dataset items" });
+    }
+  });
+  
+  // Delete dataset item
+  app.delete("/api/dataset-items/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const success = await storage.deleteDatasetItem(id);
+      if (success) {
+        res.status(200).json({ message: "Dataset item deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Dataset item not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete dataset item" });
     }
   });
 

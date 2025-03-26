@@ -165,6 +165,52 @@ export default function Datasets() {
     }
   });
   
+  // Delete dataset item mutation
+  const deleteDatasetItemMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/dataset-items/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Item deleted",
+        description: "The item has been removed from the dataset successfully.",
+      });
+      if (selectedDataset) {
+        queryClient.invalidateQueries({ queryKey: ["/api/datasets", selectedDataset.id, "items"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/datasets"] });
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Deletion failed",
+        description: "There was an error removing the item from the dataset. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Delete dataset mutation
+  const deleteDatasetMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/datasets/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Dataset deleted",
+        description: "The dataset and all its items have been deleted successfully.",
+      });
+      closeDatasetView(); // Go back to dataset list
+      queryClient.invalidateQueries({ queryKey: ["/api/datasets"] });
+    },
+    onError: () => {
+      toast({
+        title: "Deletion failed",
+        description: "There was an error deleting the dataset. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
   const handleCreateDataset = () => {
     if (!newDataset.name) {
       toast({
@@ -238,6 +284,20 @@ export default function Datasets() {
     setIsAddItemDialogOpen(true);
   };
   
+  const handleDeleteItem = (id: number) => {
+    if (confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
+      deleteDatasetItemMutation.mutate(id);
+    }
+  };
+  
+  const handleDeleteDataset = () => {
+    if (!selectedDataset) return;
+    
+    if (confirm(`Are you sure you want to delete "${selectedDataset.name}" dataset? This will permanently delete the dataset and all its items. This action cannot be undone.`)) {
+      deleteDatasetMutation.mutate(selectedDataset.id);
+    }
+  };
+  
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -254,13 +314,25 @@ export default function Datasets() {
       {selectedDataset ? (
         // Dataset detail view
         <div>
-          <div className="flex items-center mb-4">
-            <Button variant="outline" onClick={closeDatasetView} className="mr-2">
-              <span className="material-icons text-sm mr-1">arrow_back</span>
-              Back
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <Button variant="outline" onClick={closeDatasetView} className="mr-2">
+                <span className="material-icons text-sm mr-1">arrow_back</span>
+                Back
+              </Button>
+              <h3 className="text-xl font-medium">{selectedDataset.name}</h3>
+              <Badge className="ml-2">{selectedDataset.category}</Badge>
+            </div>
+            <Button 
+              variant="destructive"
+              onClick={handleDeleteDataset}
+              disabled={deleteDatasetMutation.isPending}
+            >
+              <span className="material-icons text-sm mr-1">
+                {deleteDatasetMutation.isPending ? 'hourglass_empty' : 'delete'}
+              </span>
+              Delete Dataset
             </Button>
-            <h3 className="text-xl font-medium">{selectedDataset.name}</h3>
-            <Badge className="ml-2">{selectedDataset.category}</Badge>
           </div>
           
           <Card className="mb-4">
@@ -352,8 +424,15 @@ export default function Datasets() {
                           <Button variant="ghost" size="sm">
                             <span className="material-icons text-sm">edit</span>
                           </Button>
-                          <Button variant="ghost" size="sm">
-                            <span className="material-icons text-sm">delete</span>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleDeleteItem(item.id)}
+                            disabled={deleteDatasetItemMutation.isPending}
+                          >
+                            <span className="material-icons text-sm">
+                              {deleteDatasetItemMutation.isPending ? 'hourglass_empty' : 'delete'}
+                            </span>
                           </Button>
                         </div>
                       </TableCell>
@@ -384,7 +463,25 @@ export default function Datasets() {
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-lg">{dataset.name}</CardTitle>
-                      <Badge>{dataset.category}</Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge>{dataset.category}</Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm(`Are you sure you want to delete "${dataset.name}" dataset? This will permanently delete the dataset and all its items. This action cannot be undone.`)) {
+                              deleteDatasetMutation.mutate(dataset.id);
+                            }
+                          }}
+                          disabled={deleteDatasetMutation.isPending}
+                        >
+                          <span className="material-icons text-sm">
+                            {deleteDatasetMutation.isPending ? 'hourglass_empty' : 'delete'}
+                          </span>
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
