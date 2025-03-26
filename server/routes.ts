@@ -257,6 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/evaluations/:id/start", async (req: Request, res: Response) => {
     try {
       const evaluationId = parseInt(req.params.id);
+      const { userPrompt } = req.body; // Get userPrompt from request body
       const evaluation = await storage.getEvaluation(evaluationId);
       
       if (!evaluation) {
@@ -289,7 +290,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             prompt.metaPrompt || "", 
             datasetItems, 
             evaluation.validationMethod,
-            evaluation.priority || "Balanced"
+            evaluation.priority || "Balanced",
+            userPrompt // Pass userPrompt to evaluatePrompt function
           );
           
           // Store results and update evaluation

@@ -1,19 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Prompt, Dataset } from '@shared/schema';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { getQueryFn, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useLocation } from 'wouter';
 
 interface EvaluationDialogProps {
   isOpen: boolean;
@@ -28,206 +23,229 @@ export default function EvaluationDialog({
 }: EvaluationDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
+  const [, navigate] = useLocation();
+  
   // Form state
   const [userPrompt, setUserPrompt] = useState('');
-  const [selectedDatasetId, setSelectedDatasetId] = useState<string>('');
-  const [validationMethod, setValidationMethod] = useState('LLM Pattern Matching');
+  const [datasetId, setDatasetId] = useState<number | null>(null);
+  const [validationMethod, setValidationMethod] = useState('Comprehensive');
   const [priority, setPriority] = useState('Balanced');
-
+  const [isLoading, setIsLoading] = useState(false);
+  
   // Fetch available datasets
-  const { data: datasets, isLoading: datasetsLoading } = useQuery<Dataset[]>({
+  const { data: datasets = [] } = useQuery({
     queryKey: ['/api/datasets'],
-    enabled: isOpen
+    queryFn: getQueryFn<Dataset[]>({ on401: 'returnNull' })
   });
-
-  // Reset form when dialog opens or closes
-  useEffect(() => {
-    if (isOpen) {
-      setUserPrompt('');
-      setSelectedDatasetId('');
-      setValidationMethod('LLM Pattern Matching');
-      setPriority('Balanced');
-    }
-  }, [isOpen]);
-
-  // Mutation for starting evaluation
-  const startEvaluationMutation = useMutation({
-    mutationFn: async (evaluationData: any) => {
-      // First create the evaluation
-      const createResponse = await apiRequest(
-        'POST', 
-        '/api/evaluations', 
-        evaluationData
-      );
-      const evaluation = await createResponse.json();
-      
-      // Then start the evaluation process
-      const startResponse = await apiRequest(
-        'POST', 
-        `/api/evaluations/${evaluation.id}/start`, 
-        {}
-      );
-      return startResponse.json();
+  
+  // Create evaluation
+  const createEvaluationMutation = useMutation({
+    mutationFn: async (data: {
+      promptId: number;
+      datasetId: number;
+      validationMethod: string;
+      priority: string;
+    }) => {
+      return await apiRequest('POST', '/api/evaluations', data);
     },
-    onSuccess: () => {
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({queryKey: ['/api/evaluations']});
-      
-      toast({
-        title: 'Evaluation started',
-        description: 'Your prompt evaluation has been started successfully.',
-      });
-      
-      onClose();
+    onSuccess: (response: any) => {
+      // Access id from response
+      startEvaluationMutation.mutate({ id: response.id, userPrompt });
     },
     onError: () => {
+      setIsLoading(false);
+      toast({
+        title: 'Evaluation failed',
+        description: 'There was an error creating the evaluation. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  });
+  
+  // Start evaluation
+  const startEvaluationMutation = useMutation({
+    mutationFn: async ({ id, userPrompt }: { id: number, userPrompt: string }) => {
+      return await apiRequest('POST', `/api/evaluations/${id}/start`, { userPrompt });
+    },
+    onSuccess: (response) => {
+      setIsLoading(false);
+      toast({
+        title: 'Evaluation started',
+        description: 'The prompt is being evaluated. You will be redirected to the evaluation details.'
+      });
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({queryKey: ['/api/evaluations']});
+      queryClient.invalidateQueries({queryKey: ['/api/dashboard/stats']});
+      
+      // Navigate to the evaluation details
+      setTimeout(() => {
+        onClose();
+        navigate(`/evaluations`);
+      }, 1000);
+    },
+    onError: () => {
+      setIsLoading(false);
       toast({
         title: 'Evaluation failed',
         description: 'There was an error starting the evaluation. Please try again.',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     }
   });
-
-  const handleStartEvaluation = () => {
-    if (!selectedDatasetId) {
+  
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setUserPrompt('');
+      if (datasets.length > 0) {
+        setDatasetId(datasets[0].id);
+      } else {
+        setDatasetId(null);
+      }
+      setValidationMethod('Comprehensive');
+      setPriority('Balanced');
+    }
+  }, [isOpen, datasets]);
+  
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!datasetId) {
       toast({
-        title: 'Missing dataset',
+        title: 'Dataset required',
         description: 'Please select a dataset for evaluation.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (!userPrompt.trim()) {
-      toast({
-        title: 'Missing user prompt',
-        description: 'Please enter a user prompt to test the meta prompt with.',
-        variant: 'destructive',
+        variant: 'destructive'
       });
       return;
     }
     
-    // Create data for evaluation
-    const evaluationData = {
+    setIsLoading(true);
+    
+    createEvaluationMutation.mutate({
       promptId: prompt.id,
-      datasetId: parseInt(selectedDatasetId),
+      datasetId,
       validationMethod,
-      priority,
-      userPrompt: userPrompt.trim()
-    };
-    
-    // Start the evaluation
-    startEvaluationMutation.mutate(evaluationData);
+      priority
+    });
   };
-
+  
+  // Show meta prompt with highlighted placeholders
+  const highlightedPrompt = prompt.metaPrompt?.replace(/\{\{user_prompt\}\}/g, '<span class="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">{{user_prompt}}</span>') || '';
+  
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Evaluate Meta Prompt</DialogTitle>
+          <DialogTitle>Evaluate Meta Prompt: {prompt.name}</DialogTitle>
         </DialogHeader>
         
-        <div className="grid gap-6 py-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Meta Prompt</label>
-            <div className="p-3 bg-gray-50 rounded-md border text-sm">
-              {prompt.metaPrompt}
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+          {/* Meta prompt preview */}
+          <div className="space-y-2">
+            <Label>Meta Prompt Template</Label>
+            <div 
+              className="border rounded-md p-3 bg-gray-50 dark:bg-gray-900 h-32 overflow-y-auto text-sm"
+              dangerouslySetInnerHTML={{ __html: highlightedPrompt }}
+            />
           </div>
           
-          <div>
-            <label htmlFor="user-prompt" className="block text-sm font-medium text-gray-700 mb-1">User Prompt</label>
-            <Textarea 
-              id="user-prompt" 
-              rows={3} 
-              placeholder="Enter the user prompt to test with..."
+          {/* User prompt input */}
+          <div className="space-y-2">
+            <Label htmlFor="userPrompt">User Prompt (replaces placeholder)</Label>
+            <Textarea
+              id="userPrompt"
               value={userPrompt}
               onChange={(e) => setUserPrompt(e.target.value)}
+              placeholder="Enter the user prompt that will replace the placeholder"
+              className="min-h-[80px]"
             />
-            <p className="text-xs text-gray-500 mt-1">
-              This will replace <code>{"{{user_prompt}}"}</code> in the meta prompt template.
-            </p>
           </div>
           
-          <div>
-            <label htmlFor="dataset" className="block text-sm font-medium text-gray-700 mb-1">Dataset</label>
-            <Select 
-              value={selectedDatasetId} 
-              onValueChange={setSelectedDatasetId}
+          {/* Dataset selection */}
+          <div className="space-y-2">
+            <Label htmlFor="dataset">Dataset</Label>
+            <Select
+              value={datasetId?.toString() || ''}
+              onValueChange={(value) => setDatasetId(parseInt(value))}
             >
-              <SelectTrigger id="dataset">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a dataset" />
               </SelectTrigger>
               <SelectContent>
-                {datasetsLoading ? (
-                  <SelectItem value="loading" disabled>Loading datasets...</SelectItem>
+                {datasets.length === 0 ? (
+                  <SelectItem value="none" disabled>No datasets available</SelectItem>
                 ) : (
-                  datasets?.map(dataset => (
+                  datasets.map((dataset) => (
                     <SelectItem key={dataset.id} value={dataset.id.toString()}>
                       {dataset.name} ({dataset.itemCount || 0} items)
                     </SelectItem>
                   ))
                 )}
-                {datasets?.length === 0 && (
-                  <SelectItem value="none" disabled>No datasets available</SelectItem>
-                )}
+              </SelectContent>
+            </Select>
+            {datasets.length === 0 && (
+              <p className="text-xs text-red-500 mt-1">
+                Please create a dataset before evaluating prompts.
+              </p>
+            )}
+          </div>
+          
+          {/* Validation method selection */}
+          <div className="space-y-2">
+            <Label htmlFor="validationMethod">Validation Method</Label>
+            <Select
+              value={validationMethod}
+              onValueChange={(value) => setValidationMethod(value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Comprehensive">Comprehensive Evaluation</SelectItem>
+                <SelectItem value="Semantic">Semantic Similarity</SelectItem>
+                <SelectItem value="Output Format">Output Format Validation</SelectItem>
+                <SelectItem value="Content Quality">Content Quality Assessment</SelectItem>
               </SelectContent>
             </Select>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="validation-method" className="block text-sm font-medium text-gray-700 mb-1">Validation Method</label>
-              <Select 
-                value={validationMethod} 
-                onValueChange={setValidationMethod}
-              >
-                <SelectTrigger id="validation-method">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LLM Pattern Matching">LLM Pattern Matching</SelectItem>
-                  <SelectItem value="Semantic Similarity">Semantic Similarity</SelectItem>
-                  <SelectItem value="Comprehensive Analysis">Comprehensive Analysis</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-              <Select 
-                value={priority} 
-                onValueChange={setPriority}
-              >
-                <SelectTrigger id="priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Speed">Speed (Fast, Less Accurate)</SelectItem>
-                  <SelectItem value="Balanced">Balanced</SelectItem>
-                  <SelectItem value="Accuracy">Accuracy (Slower, More Precise)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Priority selection */}
+          <div className="space-y-2">
+            <Label htmlFor="priority">Priority</Label>
+            <Select
+              value={priority}
+              onValueChange={(value) => setPriority(value)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Balanced">Balanced</SelectItem>
+                <SelectItem value="Speed (Fast, Less Accurate)">Speed (Fast, Less Accurate)</SelectItem>
+                <SelectItem value="Accuracy (Slower, More Precise)">Accuracy (Slower, More Precise)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-        
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleStartEvaluation}
-            disabled={startEvaluationMutation.isPending || !selectedDatasetId || !userPrompt.trim()}
-          >
-            {startEvaluationMutation.isPending ? "Starting..." : "Start Evaluation"}
-          </Button>
-        </DialogFooter>
+          
+          <DialogFooter className="gap-2 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading || !datasetId}
+            >
+              {isLoading ? 'Starting Evaluation...' : 'Run Evaluation'}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
