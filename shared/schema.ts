@@ -16,11 +16,27 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// Define the prompt category enum
+export const promptCategoryEnum = z.enum([
+  "Vision",
+  "Text",
+  "Code",
+  "Multi-modal",
+  "Other"
+]);
+
+export type PromptCategory = z.infer<typeof promptCategoryEnum>;
+
 // Prompts table
 export const prompts = pgTable("prompts", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  metaPrompt: text("meta_prompt").notNull(),
+  category: text("category").notNull(),
+  initialPrompt: text("initial_prompt").notNull(),
+  metaPrompt: text("meta_prompt"),
+  complexity: text("complexity").default("Standard"),
+  tone: text("tone").default("Balanced"),
+  tags: text("tags").array(),
   userId: integer("user_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -37,7 +53,7 @@ export type Prompt = typeof prompts.$inferSelect;
 export const datasetItems = pgTable("dataset_items", {
   id: serial("id").primaryKey(),
   datasetId: integer("dataset_id").notNull(),
-  inputImage: text("input_image").notNull(),
+  inputImage: text("input_image").notNull(), // URL or Base64 of image
   validResponse: text("valid_response").notNull(),
 });
 
@@ -76,7 +92,7 @@ export const evaluations = pgTable("evaluations", {
   validationMethod: text("validation_method").notNull(),
   priority: text("priority").default("Balanced"),
   score: integer("score"),
-  metrics: jsonb("metrics"),
+  metrics: jsonb("metrics"), // Store metrics like accuracy, completeness, etc.
   status: text("status").default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
   completedAt: timestamp("completed_at"),
