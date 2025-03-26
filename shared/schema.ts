@@ -16,27 +16,11 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
-// Define the prompt category enum
-export const promptCategoryEnum = z.enum([
-  "Vision",
-  "Text",
-  "Code",
-  "Multi-modal",
-  "Other"
-]);
-
-export type PromptCategory = z.infer<typeof promptCategoryEnum>;
-
 // Prompts table
 export const prompts = pgTable("prompts", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  category: text("category").notNull(),
-  initialPrompt: text("initial_prompt").notNull(),
-  metaPrompt: text("meta_prompt"),
-  complexity: text("complexity").default("Standard"),
-  tone: text("tone").default("Balanced"),
-  tags: text("tags").array(),
+  metaPrompt: text("meta_prompt").notNull(),
   userId: integer("user_id"),
   createdAt: timestamp("created_at").defaultNow(),
 });

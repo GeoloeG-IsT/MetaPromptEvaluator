@@ -29,10 +29,6 @@ export class DatabaseStorage implements IStorage {
     // Ensure nullable fields have proper null values instead of undefined
     const insertValues = {
       ...prompt,
-      metaPrompt: prompt.metaPrompt || null,
-      complexity: prompt.complexity || null,
-      tone: prompt.tone || null,
-      tags: prompt.tags || null,
       userId: prompt.userId || null
     };
     
@@ -57,12 +53,7 @@ export class DatabaseStorage implements IStorage {
     const updateValues: Record<string, any> = {};
     
     if (prompt.name !== undefined) updateValues.name = prompt.name;
-    if (prompt.category !== undefined) updateValues.category = prompt.category;
-    if (prompt.initialPrompt !== undefined) updateValues.initialPrompt = prompt.initialPrompt;
     if (prompt.metaPrompt !== undefined) updateValues.metaPrompt = prompt.metaPrompt;
-    if (prompt.complexity !== undefined) updateValues.complexity = prompt.complexity;
-    if (prompt.tone !== undefined) updateValues.tone = prompt.tone;
-    if (prompt.tags !== undefined) updateValues.tags = prompt.tags;
     if (prompt.userId !== undefined) updateValues.userId = prompt.userId;
     
     const [result] = await db.update(prompts)
