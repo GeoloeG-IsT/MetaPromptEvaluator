@@ -156,13 +156,14 @@ export default function EvaluationDialog({
       id: number;
       promptId: number;
       datasetId: number;
+      userPrompt?: string;
     }) => {
       return await apiRequest('PUT', `/api/evaluations/${data.id}`, {
         promptId: data.promptId,
         datasetId: data.datasetId,
         validationMethod: 'Comprehensive', // Default value
         priority: 'Balanced', // Default value
-        userPrompt
+        userPrompt: data.userPrompt
       });
     },
     onSuccess: () => {
@@ -205,7 +206,8 @@ export default function EvaluationDialog({
       updateEvaluationMutation.mutate({
         id: evaluation.id,
         promptId,
-        datasetId
+        datasetId,
+        userPrompt
       });
     } 
     // Otherwise create a new evaluation

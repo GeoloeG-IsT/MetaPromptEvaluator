@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Evaluation, Prompt } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger 
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import EvaluationDialog from "@/components/EvaluationDialog";
 import EvaluationDetail from "@/components/EvaluationDetail";
 
@@ -15,6 +28,7 @@ export default function Evaluations() {
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | undefined>(undefined);
   const [selectedEvaluationId, setSelectedEvaluationId] = useState<number | null>(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | undefined>(undefined);
+  const { toast } = useToast();
   
   const { data: evaluations, isLoading } = useQuery<Evaluation[]>({
     queryKey: ["/api/evaluations"],
@@ -23,6 +37,28 @@ export default function Evaluations() {
   // Fetch prompts for the dialog
   const { data: prompts = [] } = useQuery<Prompt[]>({
     queryKey: ["/api/prompts"],
+  });
+  
+  // Delete evaluation mutation
+  const deleteEvaluationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return await apiRequest('DELETE', `/api/evaluations/${id}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Evaluation deleted',
+        description: 'The evaluation has been successfully deleted.',
+      });
+      // Invalidate the evaluations list query
+      queryClient.invalidateQueries({ queryKey: ['/api/evaluations'] });
+    },
+    onError: () => {
+      toast({
+        title: 'Delete failed',
+        description: 'There was an error deleting the evaluation. Please try again.',
+        variant: 'destructive',
+      });
+    },
   });
 
   // Group evaluations by status
@@ -167,6 +203,37 @@ export default function Evaluations() {
                               Edit
                             </Button>
                           )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="border-red-200 text-red-600 hover:bg-red-50"
+                              >
+                                <span className="material-icons text-sm mr-1">delete</span>
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete this evaluation and all its results.
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteEvaluationMutation.mutate(evaluation.id)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                  disabled={deleteEvaluationMutation.isPending}
+                                >
+                                  {deleteEvaluationMutation.isPending ? 'Deleting...' : 'Delete Evaluation'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                           <Button variant="outline" size="sm" onClick={() => viewEvaluation(evaluation.id)}>
                             <span className="material-icons text-sm mr-1">visibility</span>
                             View Details
@@ -233,6 +300,37 @@ export default function Evaluations() {
                             Edit
                           </Button>
                         )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="border-red-200 text-red-600 hover:bg-red-50"
+                            >
+                              <span className="material-icons text-sm mr-1">delete</span>
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete this evaluation and all its results.
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteEvaluationMutation.mutate(evaluation.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                                disabled={deleteEvaluationMutation.isPending}
+                              >
+                                {deleteEvaluationMutation.isPending ? 'Deleting...' : 'Delete Evaluation'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                         <Button variant="outline" size="sm" onClick={() => viewEvaluation(evaluation.id)}>
                           <span className="material-icons text-sm mr-1">visibility</span>
                           View Details
