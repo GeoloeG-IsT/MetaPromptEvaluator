@@ -4,6 +4,7 @@ import { Evaluation, EvaluationResult, Prompt, Dataset, DatasetItem } from '@sha
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,10 +13,22 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface EvaluationDetailProps {
   evaluationId: number;
   onBack: () => void;
+  onEdit?: (evaluation: Evaluation) => void;
 }
 
 export default function EvaluationDetail({ evaluationId, onBack }: EvaluationDetailProps) {
@@ -123,6 +136,30 @@ export default function EvaluationDetail({ evaluationId, onBack }: EvaluationDet
       priority
     });
   };
+  
+  // Delete evaluation mutation
+  const deleteEvaluationMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('DELETE', `/api/evaluations/${evaluationId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Evaluation deleted',
+        description: 'The evaluation has been deleted successfully.',
+      });
+      // Navigate back to the evaluations list
+      onBack();
+      // Invalidate the evaluations list query
+      queryClient.invalidateQueries({ queryKey: ['/api/evaluations'] });
+    },
+    onError: () => {
+      toast({
+        title: 'Delete failed',
+        description: 'There was an error deleting the evaluation. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Run evaluation mutation
   const runEvaluationMutation = useMutation({
@@ -205,9 +242,37 @@ export default function EvaluationDetail({ evaluationId, onBack }: EvaluationDet
         <div className="flex gap-2">
           {!isEditing ? (
             <>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50">
+                    <span className="material-icons text-sm mr-1">delete</span>
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the evaluation
+                      and all its results from the server.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteEvaluationMutation.mutate()}
+                      className="bg-red-600 hover:bg-red-700"
+                      disabled={deleteEvaluationMutation.isPending}
+                    >
+                      {deleteEvaluationMutation.isPending ? 'Deleting...' : 'Delete Evaluation'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
               <Button variant="outline" onClick={() => setIsEditing(true)}>
                 <span className="material-icons text-sm mr-1">edit</span>
-                Edit
+                Edit Details
               </Button>
               {(evaluation.status === 'pending' || evaluation.status === 'failed') && (
                 <Button 

@@ -39,6 +39,7 @@ export interface IStorage {
   getEvaluation(id: number): Promise<Evaluation | undefined>;
   getEvaluations(promptId?: number): Promise<Evaluation[]>;
   updateEvaluation(id: number, evaluation: Partial<Evaluation>): Promise<Evaluation | undefined>;
+  deleteEvaluation(id: number): Promise<boolean>;
   
   // Evaluation result operations
   createEvaluationResult(result: InsertEvaluationResult): Promise<EvaluationResult>;
@@ -277,6 +278,16 @@ export class MemStorage implements IStorage {
     const updatedEvaluation: Evaluation = { ...existingEvaluation, ...evaluationUpdate };
     this.evaluations.set(id, updatedEvaluation);
     return updatedEvaluation;
+  }
+  
+  async deleteEvaluation(id: number): Promise<boolean> {
+    // First, delete all evaluation results for this evaluation
+    Array.from(this.evaluationResults.values())
+      .filter(result => result.evaluationId === id)
+      .forEach(result => this.evaluationResults.delete(result.id));
+    
+    // Then delete the evaluation itself
+    return this.evaluations.delete(id);
   }
 
   // Evaluation result operations

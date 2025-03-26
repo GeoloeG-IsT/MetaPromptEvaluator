@@ -7,7 +7,8 @@ import {
   insertPromptSchema, 
   insertDatasetSchema, 
   insertDatasetItemSchema,
-  insertEvaluationSchema
+  insertEvaluationSchema,
+  Evaluation
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -290,6 +291,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(evaluation);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch evaluation" });
+    }
+  });
+  
+  // Update evaluation
+  app.put("/api/evaluations/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { promptId, datasetId, validationMethod, priority } = req.body;
+      
+      // Ensure the evaluation exists
+      const existingEvaluation = await storage.getEvaluation(id);
+      if (!existingEvaluation) {
+        return res.status(404).json({ message: "Evaluation not found" });
+      }
+      
+      // Don't allow updating evaluations that have been run
+      if (existingEvaluation.status !== 'pending' && existingEvaluation.status !== 'failed') {
+        return res.status(400).json({ 
+          message: "Cannot update evaluations that have already been run or are in progress" 
+        });
+      }
+      
+      // Construct update object
+      const updateData: Partial<Evaluation> = {};
+      if (promptId !== undefined) updateData.promptId = promptId;
+      if (datasetId !== undefined) updateData.datasetId = datasetId;
+      if (validationMethod !== undefined) updateData.validationMethod = validationMethod;
+      if (priority !== undefined) updateData.priority = priority;
+      
+      // Update the evaluation
+      const updatedEvaluation = await storage.updateEvaluation(id, updateData);
+      
+      if (updatedEvaluation) {
+        res.json(updatedEvaluation);
+      } else {
+        res.status(500).json({ message: "Failed to update evaluation" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update evaluation" });
+    }
+  });
+  
+  // Delete evaluation
+  app.delete("/api/evaluations/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // First delete all evaluation results
+      const results = await storage.getEvaluationResults(id);
+      for (const result of results) {
+        // Assuming we need to implement a function to delete evaluation results
+        // For now, we don't have this function directly in storage
+        // This would be implemented in a real application
+      }
+      
+      // Then delete the evaluation itself
+      const success = await storage.deleteEvaluation(id);
+      
+      if (success) {
+        res.status(200).json({ message: "Evaluation deleted successfully" });
+      } else {
+        res.status(404).json({ message: "Evaluation not found" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete evaluation" });
     }
   });
 

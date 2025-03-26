@@ -14,6 +14,7 @@ export default function Evaluations() {
   const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [selectedEvaluationId, setSelectedEvaluationId] = useState<number | null>(null);
+  const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
   
   const { data: evaluations, isLoading } = useQuery<Evaluation[]>({
     queryKey: ["/api/evaluations"],
@@ -35,6 +36,20 @@ export default function Evaluations() {
   
   const closeEvaluationDetail = () => {
     setSelectedEvaluationId(null);
+  };
+  
+  // Function to open the edit dialog
+  const openEditDialog = (evaluation: Evaluation) => {
+    setSelectedEvaluation(evaluation);
+    setSelectedPrompt(null);
+    setIsEvaluationDialogOpen(true);
+  };
+  
+  // Close the dialog and reset selection
+  const closeDialog = () => {
+    setIsEvaluationDialogOpen(false);
+    setSelectedEvaluation(null);
+    setSelectedPrompt(null);
   };
 
   function getStatusBadge(status: string) {
@@ -146,6 +161,16 @@ export default function Evaluations() {
                           )}
                         </div>
                         <div className="flex space-x-2">
+                          {evaluation.status !== 'in_progress' && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => openEditDialog(evaluation)}
+                            >
+                              <span className="material-icons text-sm mr-1">edit</span>
+                              Edit
+                            </Button>
+                          )}
                           <Button variant="outline" size="sm" onClick={() => viewEvaluation(evaluation.id)}>
                             <span className="material-icons text-sm mr-1">visibility</span>
                             View Details
@@ -202,6 +227,16 @@ export default function Evaluations() {
                         )}
                       </div>
                       <div className="flex space-x-2">
+                        {evaluation.status !== 'in_progress' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => openEditDialog(evaluation)}
+                          >
+                            <span className="material-icons text-sm mr-1">edit</span>
+                            Edit
+                          </Button>
+                        )}
                         <Button variant="outline" size="sm" onClick={() => viewEvaluation(evaluation.id)}>
                           <span className="material-icons text-sm mr-1">visibility</span>
                           View Details
@@ -310,13 +345,12 @@ export default function Evaluations() {
       </Tabs>
       
       {/* EvaluationDialog component */}
-      {selectedPrompt && (
-        <EvaluationDialog
-          isOpen={isEvaluationDialogOpen}
-          onClose={() => setIsEvaluationDialogOpen(false)}
-          prompt={selectedPrompt}
-        />
-      )}
+      <EvaluationDialog
+        isOpen={isEvaluationDialogOpen}
+        onClose={closeDialog}
+        prompt={selectedPrompt}
+        evaluation={selectedEvaluation}
+      />
     </div>
   );
 }

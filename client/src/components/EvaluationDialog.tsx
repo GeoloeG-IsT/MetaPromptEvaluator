@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Prompt, Dataset } from '@shared/schema';
+import { Prompt, Dataset, Evaluation } from '@shared/schema';
 import { getQueryFn, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -14,12 +14,14 @@ interface EvaluationDialogProps {
   isOpen: boolean;
   onClose: () => void;
   prompt?: Prompt; // Make prompt optional as we'll now select it from a dropdown
+  evaluation?: Evaluation; // Add evaluation prop for editing existing evaluations
 }
 
 export default function EvaluationDialog({
   isOpen,
   onClose,
-  prompt: initialPrompt // Rename to initialPrompt to avoid confusion
+  prompt: initialPrompt, // Rename to initialPrompt to avoid confusion
+  evaluation // Add evaluation for editing existing evaluations
 }: EvaluationDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -108,26 +110,83 @@ export default function EvaluationDialog({
   // Reset form when dialog opens
   useEffect(() => {
     if (isOpen) {
+      // Set default values first
       setUserPrompt('');
-      // If an initial prompt was provided, use it
-      if (initialPrompt) {
-        setPromptId(initialPrompt.id);
-      } else if (prompts.length > 0) {
-        setPromptId(prompts[0].id);
-      } else {
-        setPromptId(null);
-      }
-      
-      if (datasets.length > 0) {
-        setDatasetId(datasets[0].id);
-      } else {
-        setDatasetId(null);
-      }
       setValidationMethod('Comprehensive');
       setPriority('Balanced');
+      
+      // If editing an existing evaluation, use its values
+      if (evaluation) {
+        setPromptId(evaluation.promptId);
+        setDatasetId(evaluation.datasetId);
+        setValidationMethod(evaluation.validationMethod || 'Comprehensive');
+        setPriority(evaluation.priority || 'Balanced');
+      } 
+      // Otherwise use the initial prompt if provided
+      else if (initialPrompt) {
+        setPromptId(initialPrompt.id);
+        // Set default dataset if available
+        if (datasets.length > 0) {
+          setDatasetId(datasets[0].id);
+        } else {
+          setDatasetId(null);
+        }
+      } 
+      // If no initial prompt or evaluation, use defaults
+      else {
+        if (prompts.length > 0) {
+          setPromptId(prompts[0].id);
+        } else {
+          setPromptId(null);
+        }
+        
+        if (datasets.length > 0) {
+          setDatasetId(datasets[0].id);
+        } else {
+          setDatasetId(null);
+        }
+      }
     }
-  }, [isOpen, datasets, prompts, initialPrompt]);
+  }, [isOpen, datasets, prompts, initialPrompt, evaluation]);
   
+  // Update evaluation mutation
+  const updateEvaluationMutation = useMutation({
+    mutationFn: async (data: {
+      id: number;
+      promptId: number;
+      datasetId: number;
+      validationMethod: string;
+      priority: string;
+    }) => {
+      return await apiRequest('PUT', `/api/evaluations/${data.id}`, {
+        promptId: data.promptId,
+        datasetId: data.datasetId,
+        validationMethod: data.validationMethod,
+        priority: data.priority
+      });
+    },
+    onSuccess: () => {
+      setIsSaving(false);
+      toast({
+        title: 'Evaluation updated',
+        description: 'The evaluation has been updated successfully.'
+      });
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({queryKey: ['/api/evaluations']});
+      queryClient.invalidateQueries({queryKey: ['/api/evaluations', evaluation?.id]});
+      onClose();
+    },
+    onError: () => {
+      setIsSaving(false);
+      toast({
+        title: 'Update failed',
+        description: 'There was an error updating the evaluation. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Handle save evaluation without running
   const handleSaveEvaluation = async () => {
     if (!promptId || !datasetId) {
@@ -141,30 +200,43 @@ export default function EvaluationDialog({
     
     setIsSaving(true);
     
-    try {
-      const response = await apiRequest('POST', '/api/evaluations', {
+    // If we're editing an existing evaluation
+    if (evaluation) {
+      updateEvaluationMutation.mutate({
+        id: evaluation.id,
         promptId,
         datasetId,
         validationMethod,
         priority
       });
-      
-      setIsSaving(false);
-      toast({
-        title: 'Evaluation saved',
-        description: 'The evaluation has been saved and can be run later.'
-      });
-      
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({queryKey: ['/api/evaluations']});
-      onClose();
-    } catch (error) {
-      setIsSaving(false);
-      toast({
-        title: 'Save failed',
-        description: 'There was an error saving the evaluation. Please try again.',
-        variant: 'destructive'
-      });
+    } 
+    // Otherwise create a new evaluation
+    else {
+      try {
+        const response = await apiRequest('POST', '/api/evaluations', {
+          promptId,
+          datasetId,
+          validationMethod,
+          priority
+        });
+        
+        setIsSaving(false);
+        toast({
+          title: 'Evaluation saved',
+          description: 'The evaluation has been saved and can be run later.'
+        });
+        
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries({queryKey: ['/api/evaluations']});
+        onClose();
+      } catch (error) {
+        setIsSaving(false);
+        toast({
+          title: 'Save failed',
+          description: 'There was an error saving the evaluation. Please try again.',
+          variant: 'destructive'
+        });
+      }
     }
   };
   
@@ -195,7 +267,9 @@ export default function EvaluationDialog({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Create New Evaluation</DialogTitle>
+          <DialogTitle>
+            {evaluation ? 'Edit Evaluation' : 'Create New Evaluation'}
+          </DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">

@@ -214,11 +214,32 @@ export class DatabaseStorage implements IStorage {
     if (evaluation.metrics !== undefined) updateValues.metrics = evaluation.metrics;
     if (evaluation.completedAt !== undefined) updateValues.completedAt = evaluation.completedAt;
     if (evaluation.priority !== undefined) updateValues.priority = evaluation.priority;
+    if (evaluation.promptId !== undefined) updateValues.promptId = evaluation.promptId;
+    if (evaluation.datasetId !== undefined) updateValues.datasetId = evaluation.datasetId;
+    if (evaluation.validationMethod !== undefined) updateValues.validationMethod = evaluation.validationMethod;
     
     const [result] = await db.update(evaluations)
       .set(updateValues)
       .where(eq(evaluations.id, id))
       .returning();
+    
+    return result;
+  }
+  
+  async deleteEvaluation(id: number): Promise<boolean> {
+    // Use a transaction to delete the evaluation and all its results
+    const result = await db.transaction(async (tx) => {
+      // First delete all related evaluation results
+      await tx.delete(evaluationResults)
+        .where(eq(evaluationResults.evaluationId, id));
+      
+      // Then delete the evaluation itself
+      const deleteResult = await tx.delete(evaluations)
+        .where(eq(evaluations.id, id))
+        .returning();
+      
+      return deleteResult.length > 0;
+    });
     
     return result;
   }
