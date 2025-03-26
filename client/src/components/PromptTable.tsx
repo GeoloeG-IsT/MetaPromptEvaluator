@@ -22,20 +22,7 @@ interface PromptTableProps {
   onCreateNew: () => void;
 }
 
-function getCategoryBadge(category: string) {
-  switch (category) {
-    case 'Vision':
-      return <span className="px-2 py-1 text-xs rounded-full bg-indigo-100 text-primary">Vision</span>;
-    case 'Text':
-      return <span className="px-2 py-1 text-xs rounded-full bg-pink-100 text-secondary">Text</span>;
-    case 'Code':
-      return <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-600">Code</span>;
-    case 'Multi-modal':
-      return <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-600">Combined</span>;
-    default:
-      return <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">Other</span>;
-  }
-}
+// Category badges removed as requested
 
 export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) {
   const { toast } = useToast();
@@ -104,7 +91,6 @@ export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) 
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
@@ -112,7 +98,7 @@ export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) 
           <tbody className="bg-white divide-y divide-gray-200">
             {prompts.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                <td colSpan={3} className="px-6 py-4 text-center text-gray-500">
                   No meta prompts found. Create one to get started.
                 </td>
               </tr>
@@ -121,9 +107,6 @@ export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) 
                 <tr key={prompt.id}>
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-dark">{prompt.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getCategoryBadge(prompt.category)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {prompt.createdAt

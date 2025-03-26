@@ -36,17 +36,14 @@ export default function MetaPromptDialog({
       if (existingPrompt) {
         setName(existingPrompt.name);
         
-        // Parse the initialPrompt to extract the original meta prompt template and user prompt
-        if (existingPrompt.initialPrompt) {
-          const match = existingPrompt.initialPrompt.match(/Meta Prompt Template: ([\s\S]*?)\nUser Prompt: ([\s\S]*)/);
-          if (match && match.length >= 3) {
-            setMetaPrompt(match[1]);
-            setUserPrompt(match[2]);
-          }
-        }
+        // Set the meta prompt template from the existing prompt
+        // This is now the main content stored in metaPrompt
+        setMetaPrompt(existingPrompt.metaPrompt || '');
         
-        // The LLM response is stored in the metaPrompt field
-        setLlmResponse(existingPrompt.metaPrompt || '');
+        // Reset other fields
+        setUserPrompt('');
+        setProcessedMetaPrompt('');
+        setLlmResponse('');
       } else {
         // Reset form for new meta prompt
         setName('');
@@ -161,31 +158,21 @@ export default function MetaPromptDialog({
       return;
     }
     
-    if (!llmResponse) {
+    if (!metaPrompt.trim()) {
       toast({
-        title: "Missing LLM response",
-        description: "Please generate an LLM response first.",
+        title: "Missing meta prompt",
+        description: "Please enter a meta prompt template.",
         variant: "destructive",
       });
       return;
     }
     
-    // Store info about the user prompt and meta prompt template
-    const initialPromptWithContext = `Meta Prompt Template: ${metaPrompt}\nUser Prompt: ${userPrompt}`;
-    
-    // Create data that matches our insert schema
+    // Create data that matches our updated schema (simplified)
     const promptData = {
       name,
-      category: "Other", // Default category
-      initialPrompt: initialPromptWithContext,
-      metaPrompt: llmResponse, // Store the LLM response in metaPrompt field
-      complexity: "Standard", // Default complexity
-      tone: "Balanced", // Default tone
-      tags: null, // No tags as requested
+      metaPrompt, // Store the template in metaPrompt field
       userId: 1, // Hard-coded for demo
     };
-    
-    // For edit mode, we'll use the proper API endpoint with PUT
     
     // Save the prompt
     savePromptMutation.mutate(promptData);
@@ -233,7 +220,7 @@ export default function MetaPromptDialog({
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={savePromptMutation.isPending || !name.trim() || !llmResponse}
+                disabled={savePromptMutation.isPending || !name.trim() || !metaPrompt.trim()}
               >
                 {savePromptMutation.isPending ? "Saving..." : "Save Meta Prompt"}
               </Button>

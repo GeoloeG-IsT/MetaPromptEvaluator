@@ -27,36 +27,21 @@ async function seedDatabase() {
       console.log('Using existing demo user with ID:', userId);
     }
     
-    // Add some sample prompts
+    // Add some sample prompts with simplified schema
     const samplePrompts: InsertPrompt[] = [
       {
         name: 'Detailed Image Description',
-        category: 'Vision',
-        initialPrompt: 'Describe this image',
         metaPrompt: 'You are an expert art critic with deep knowledge of visual aesthetics. When presented with {{user_prompt}}, provide a detailed analysis including: composition elements, color theory, cultural context, emotional impact, and technical execution. Use professional terminology and offer specific insights about what makes the image distinctive.',
-        complexity: 'Advanced',
-        tone: 'Professional',
-        tags: ['image-analysis', 'detailed', 'art-critic'],
         userId
       },
       {
         name: 'Code Review Assistant',
-        category: 'Code',
-        initialPrompt: 'Review this code',
         metaPrompt: 'As an experienced software engineer, analyze the {{user_prompt}} for: potential bugs, performance issues, security vulnerabilities, maintainability concerns, and adherence to best practices. Provide specific code improvements with examples and explain the reasoning behind each suggestion. Focus on practical improvements that would have the most impact.',
-        complexity: 'Advanced',
-        tone: 'Technical',
-        tags: ['code-review', 'software-engineering', 'best-practices'],
         userId
       },
       {
         name: 'Learning Concept Explainer',
-        category: 'Text',
-        initialPrompt: 'Explain this concept',
         metaPrompt: 'You are an expert educator skilled at explaining complex concepts. When given {{user_prompt}}, create a comprehensive explanation that: 1) Starts with a simple analogy, 2) Builds up complexity gradually, 3) Provides concrete examples, 4) Addresses common misconceptions, and 5) Includes self-assessment questions. Your goal is to make the concept understandable to someone with no prior knowledge.',
-        complexity: 'Standard',
-        tone: 'Friendly',
-        tags: ['education', 'explanation', 'concepts'],
         userId
       }
     ];
