@@ -98,11 +98,43 @@ export async function evaluatePrompt(
     temperature = 0;
   }
   
+  // Inject user prompt into meta prompt
+  const processedMetaPrompt = userPrompt 
+    ? metaPrompt.replace(/{{user_prompt}}/g, userPrompt)
+    : metaPrompt;
+    
+  console.log("=== EVALUATION INFO ===");
+  console.log("Original Meta Prompt:", metaPrompt);
+  console.log("User Prompt:", userPrompt);
+  console.log("Processed Meta Prompt:", processedMetaPrompt);
+  console.log("Validation Method:", validationMethod);
+  console.log("Priority:", priority);
+  console.log("Number of Dataset Items:", datasetItems.length);
+  console.log("=======================");
+  
   // Process each dataset item
   for (const item of datasetItems) {
+    console.log(`\n=== Processing Dataset Item ID: ${item.id} ===`);
+    console.log(`Input Type: ${item.inputType}`);
+    console.log(`Has Input Image: ${!!item.inputImage}`);
+    console.log(`Has Input Text: ${!!item.inputText}`);
+    console.log(`Expected Response: ${item.validResponse ? item.validResponse.substring(0, 50) + "..." : "None"}`);
+    
     try {
-      // Generate a response using the meta prompt and the input image
-      const generatedResponse = await simulateImageResponseGeneration(metaPrompt, item.inputImage, userPrompt);
+      // Generate a response using the processed meta prompt and the input (image or text)
+      let generatedResponse: string;
+      if (item.inputType === "image" && item.inputImage) {
+        console.log("Generating response for IMAGE input");
+        generatedResponse = await generateImageResponse(processedMetaPrompt, item.inputImage, userPrompt);
+      } else if (item.inputType === "text" && item.inputText) {
+        console.log("Generating response for TEXT input");
+        generatedResponse = await generateTextResponse(processedMetaPrompt, item.inputText, userPrompt);
+      } else {
+        console.log("WARNING: Dataset item has neither valid image nor text input");
+        generatedResponse = "Error: Dataset item has no valid input";
+      }
+      
+      console.log(`Generated Response (first 100 chars): ${generatedResponse ? generatedResponse.substring(0, 100) + "..." : "None"}`);
       
       // Evaluate the generated response against the valid response
       const evaluationResult = await evaluateResponse(
@@ -110,6 +142,8 @@ export async function evaluatePrompt(
         item.validResponse,
         validationMethod
       );
+      
+      console.log(`Evaluation Result: Valid=${evaluationResult.isValid}, Score=${evaluationResult.score}`);
       
       results.push({
         datasetItemId: item.id,
@@ -133,46 +167,93 @@ export async function evaluatePrompt(
   return results;
 }
 
-async function simulateImageResponseGeneration(metaPrompt: string, imageUrl: string, userPrompt?: string): Promise<string> {
+/**
+ * Generate a response for an image input using the OpenAI vision API.
+ * This uses the processed meta prompt as the system message and the image as the user message.
+ */
+export async function generateImageResponse(metaPrompt: string, imageUrl: string, userPrompt?: string): Promise<string> {
   try {
-    // Check if the meta prompt contains the {{user_prompt}} placeholder
-    const processedMetaPrompt = userPrompt 
-      ? metaPrompt.replace(/{{user_prompt}}/g, userPrompt)
-      : metaPrompt;
-    
-    // In a real implementation, this would use OpenAI's vision capabilities
-    // We'd pass the image URL or base64 to the API
+    console.log("IMAGE RESPONSE GENERATION");
+    console.log("Meta Prompt:", metaPrompt.substring(0, 100) + "...");
+    console.log("Image URL:", imageUrl);
+
+    // Prepare the messages for the API call
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: processedMetaPrompt
+          content: metaPrompt
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: userPrompt || "Please generate a response for this image."
+              text: userPrompt || "Please analyze this image."
             },
-            // In a real app, we would include the actual image here
-            // Since we don't have real images, we simulate with a text description
             {
-              type: "text",
-              text: `[This is where the image from ${imageUrl} would be processed. For now, imagine this is a landscape image with mountains, sky, and trees.]`
+              type: "image_url",
+              image_url: {
+                url: imageUrl,
+                detail: "high"
+              }
             }
           ]
         }
       ],
       temperature: 0.5,
-      max_tokens: 500
+      max_tokens: 800
     });
 
-    return response.choices[0].message.content || "Failed to generate response for image";
-  } catch (error) {
-    console.error("Error simulating image response generation:", error);
-    return "Error: Unable to generate response for this image";
+    const result = response.choices[0].message.content || "Failed to generate response for image";
+    console.log("Generated response (preview):", result.substring(0, 50) + "...");
+    return result;
+  } catch (error: any) {
+    console.error("Error generating image response:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
+    return "Error: Unable to generate response for this image. " + (error.message || "Unknown error");
+  }
+}
+
+/**
+ * Generate a response for a text input using the OpenAI API.
+ * This uses the processed meta prompt as the system message and the text as the user message.
+ */
+export async function generateTextResponse(metaPrompt: string, inputText: string, userPrompt?: string): Promise<string> {
+  try {
+    console.log("TEXT RESPONSE GENERATION");
+    console.log("Meta Prompt:", metaPrompt.substring(0, 100) + "...");
+    console.log("Input Text:", inputText.substring(0, 100) + "...");
+    
+    // Combine user prompt and input text if both are provided
+    const userContent = userPrompt 
+      ? `${userPrompt}\n\nInput: ${inputText}`
+      : inputText;
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: metaPrompt
+        },
+        {
+          role: "user",
+          content: userContent
+        }
+      ],
+      temperature: 0.5,
+      max_tokens: 800
+    });
+
+    const result = response.choices[0].message.content || "Failed to generate response for text";
+    console.log("Generated response (preview):", result.substring(0, 50) + "...");
+    return result;
+  } catch (error: any) {
+    console.error("Error generating text response:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
+    return "Error: Unable to generate response for this text input. " + (error.message || "Unknown error");
   }
 }
 
@@ -182,12 +263,20 @@ type EvaluationResponse = {
   feedback: string;
 };
 
-async function evaluateResponse(
+/**
+ * Evaluate how well a generated response matches the expected valid response
+ */
+export async function evaluateResponse(
   generatedResponse: string,
   validResponse: string,
   validationMethod: string
 ): Promise<EvaluationResponse> {
   try {
+    console.log("EVALUATING RESPONSE");
+    console.log("Validation Method:", validationMethod);
+    console.log("Generated Response:", generatedResponse.substring(0, 100) + "...");
+    console.log("Valid Response:", validResponse.substring(0, 100) + "...");
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -199,7 +288,7 @@ async function evaluateResponse(
             Validation method: ${validationMethod}
             
             Return your evaluation in JSON format with the following fields:
-            - isValid: boolean indicating if the response meets quality threshold
+            - isValid: boolean indicating if the response meets quality threshold (set to true if the score is at least 70)
             - score: numeric score between 0-100
             - feedback: specific feedback about strengths and weaknesses`
         },
@@ -217,19 +306,36 @@ async function evaluateResponse(
       temperature: 0.2
     });
 
-    const result = JSON.parse(response.choices[0].message.content || "{}");
+    const content = response.choices[0].message.content || "{}";
+    console.log("Raw evaluation result:", content);
     
-    return {
+    let result;
+    try {
+      result = JSON.parse(content);
+    } catch (parseError) {
+      console.error("Error parsing evaluation result JSON:", parseError);
+      return {
+        isValid: false,
+        score: 0,
+        feedback: "Error: Failed to parse evaluation result"
+      };
+    }
+    
+    const evalResult = {
       isValid: result.isValid || false,
       score: result.score || 0,
       feedback: result.feedback || "No feedback provided"
     };
-  } catch (error) {
+    
+    console.log("Evaluation result:", evalResult);
+    return evalResult;
+  } catch (error: any) {
     console.error("Error evaluating response:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
     return {
       isValid: false,
       score: 0,
-      feedback: "Error: Failed to evaluate this response"
+      feedback: "Error: Failed to evaluate this response. " + (error.message || "Unknown error")
     };
   }
 }

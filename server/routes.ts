@@ -391,6 +391,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           
+          console.log(`Starting evaluation for prompt ID ${prompt.id} with ${datasetItems.length} dataset items`);
+          console.log(`Using meta prompt: ${prompt.metaPrompt?.substring(0, 100)}...`);
+          console.log(`Using validation method: ${evaluation.validationMethod}`);
+          console.log(`Using priority: ${evaluation.priority || "Balanced"}`);
+          console.log(`User prompt: ${userPrompt || "(None provided)"}`);
+          
           const results = await evaluatePrompt(
             prompt.metaPrompt || "", 
             datasetItems, 
