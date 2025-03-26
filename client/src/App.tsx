@@ -4,7 +4,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
-import PromptCreator from "@/pages/PromptCreator";
 import Evaluations from "@/pages/Evaluations";
 import Datasets from "@/pages/Datasets";
 import PromptHistory from "@/pages/PromptHistory";
@@ -46,7 +45,6 @@ function App() {
           <div className="max-w-7xl mx-auto p-4 md:p-6">
             <Switch>
               <Route path="/" component={Dashboard} />
-              <Route path="/prompt-creator" component={PromptCreator} />
               <Route path="/evaluations" component={Evaluations} />
               <Route path="/datasets" component={Datasets} />
               <Route path="/prompt-history" component={PromptHistory} />

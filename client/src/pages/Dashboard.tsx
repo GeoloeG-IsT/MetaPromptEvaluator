@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { Prompt } from "@shared/schema";
 import StatCard from "@/components/StatCard";
 import ActivityTable from "@/components/ActivityTable";
+import PromptTable from "@/components/PromptTable";
 import { Button } from "@/components/ui/button";
+import MetaPromptDialog from "@/components/MetaPromptDialog";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["/api/dashboard/stats"],
@@ -14,6 +18,10 @@ export default function Dashboard() {
 
   const { data: recentActivity, isLoading: activityLoading } = useQuery<Prompt[]>({
     queryKey: ["/api/dashboard/recent"],
+  });
+  
+  const { data: prompts, isLoading: promptsLoading } = useQuery<Prompt[]>({
+    queryKey: ["/api/prompts"],
   });
 
   const statCards = [
@@ -54,6 +62,10 @@ export default function Dashboard() {
   const handleViewAllActivity = () => {
     setLocation("/prompt-history");
   };
+  
+  const handleCreateNewPrompt = () => {
+    setIsCreateDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -67,12 +79,13 @@ export default function Dashboard() {
             <span className="material-icons text-sm mr-1">file_download</span>
             Export
           </Button>
-          <Link href="/prompt-creator">
-            <Button className="flex items-center">
-              <span className="material-icons text-sm mr-1">add</span>
-              New Prompt
-            </Button>
-          </Link>
+          <Button 
+            className="flex items-center"
+            onClick={handleCreateNewPrompt}
+          >
+            <span className="material-icons text-sm mr-1">add</span>
+            New Meta Prompt
+          </Button>
         </div>
       </div>
 
@@ -82,11 +95,23 @@ export default function Dashboard() {
           <StatCard key={index} {...stat} />
         ))}
       </div>
+      
+      {/* Meta Prompts Table */}
+      <PromptTable 
+        prompts={prompts || []} 
+        onCreateNew={handleCreateNewPrompt} 
+      />
 
-      {/* Recent Activity */}
+      {/* Recent Activity Table */}
       <ActivityTable 
         activities={recentActivity || []} 
         onViewAll={handleViewAllActivity}
+      />
+      
+      {/* Create Meta Prompt Dialog */}
+      <MetaPromptDialog
+        isOpen={isCreateDialogOpen}
+        onClose={() => setIsCreateDialogOpen(false)}
       />
     </div>
   );
