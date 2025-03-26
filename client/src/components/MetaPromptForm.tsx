@@ -57,6 +57,7 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
       // Store info about the user prompt and meta prompt template
       const initialPromptWithContext = `Meta Prompt Template: ${metaPrompt}\nUser Prompt: ${userPrompt}`;
       
+      // Create data that matches our insert schema
       const promptData = {
         name,
         category: "Other", // Default category
@@ -64,12 +65,15 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
         metaPrompt: llmResponse, // Store the LLM response in metaPrompt field
         complexity: "Standard", // Default complexity
         tone: "Balanced", // Default tone
-        tags: [], // No tags as requested
-        userId: 1 // Hard-coded for demo
+        tags: null, // No tags as requested
+        userId: 1, // Hard-coded for demo
+        // These will be added by the server
+        id: 0, // Placeholder that will be replaced by the server
+        createdAt: null, // Will be set by the server
       };
       
-      // Call onSavePrompt with the prompt data
-      onSavePrompt(promptData as Prompt);
+      // Call onSavePrompt with the properly typed prompt data
+      onSavePrompt(promptData);
     }
   };
 
@@ -142,7 +146,7 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
         
         {/* Right Panel */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium mb-4">User Input & Generated Prompt</h3>
+          <h3 className="text-lg font-medium mb-4">User Input & LLM Response</h3>
           
           <div className="mb-4">
             <label htmlFor="user-prompt" className="block text-sm font-medium text-gray-700 mb-1">User Prompt</label>
@@ -160,28 +164,27 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
           </div>
           
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Generated Prompt</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">LLM Response</label>
             <div className="p-4 bg-gray-50 rounded-md code-editor overflow-auto max-h-96 custom-scrollbar">
-              <pre className="text-sm whitespace-pre-wrap">{userInitialPrompt || "Your generated prompt will appear here..."}</pre>
+              <pre className="text-sm whitespace-pre-wrap">{llmResponse || "LLM response will appear here after generating..."}</pre>
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-3 mb-6">
-            {promptTags.map((tag, index) => (
-              <div key={index} className="text-xs px-2 py-1 bg-indigo-100 text-primary rounded-full">
-                {tag}
-              </div>
-            ))}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Processed Meta Prompt</label>
+            <div className="p-3 bg-gray-50 rounded-md code-editor overflow-auto max-h-40 custom-scrollbar">
+              <pre className="text-xs text-gray-500 whitespace-pre-wrap">{processedMetaPrompt || "The processed meta prompt will be shown here..."}</pre>
+            </div>
           </div>
           
           <div className="flex flex-wrap gap-3">
             <Button 
               className="ml-auto" 
-              disabled={generateMutation.isPending || !metaPrompt.trim() || !userPrompt.trim()}
+              disabled={generateLLMResponseMutation.isPending || !metaPrompt.trim() || !userPrompt.trim()}
               onClick={handleGenerateFinalPrompt}
             >
               <span className="material-icons text-sm mr-1">auto_awesome</span>
-              {generateMutation.isPending ? "Generating..." : "Generate"}
+              {generateLLMResponseMutation.isPending ? "Generating..." : "Generate"}
             </Button>
           </div>
         </div>
