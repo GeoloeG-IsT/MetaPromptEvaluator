@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Evaluation, EvaluationResult, Prompt, Dataset, DatasetItem } from '@shared/schema';
+import { EvaluationMetrics } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -205,6 +206,17 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
   const getDatasetItem = (id: number) => {
     return datasetItems?.find(item => item.id === id);
   };
+  
+  // Helper function to safely handle metrics
+  const getMetricsEntries = (metrics: unknown): [string, number][] => {
+    if (!metrics || typeof metrics !== 'object') return [];
+    
+    return Object.entries(metrics as Record<string, unknown>)
+      .filter((entry): entry is [string, number] => {
+        const [key, value] = entry;
+        return key !== 'error' && typeof value === 'number';
+      });
+  };
 
   // If loading, show spinner
   if (evaluationLoading) {
@@ -280,18 +292,6 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle>Evaluation Summary</CardTitle>
-          <div className="flex gap-2">
-            {(evaluation.status === 'pending' || evaluation.status === 'failed') && (
-              <Button 
-                onClick={() => runEvaluationMutation.mutate()}
-                disabled={runEvaluationMutation.isPending}
-                size="sm"
-              >
-                <span className="material-icons text-sm mr-1">play_arrow</span>
-                {runEvaluationMutation.isPending ? 'Starting...' : 'Run'}
-              </Button>
-            )}
-          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -310,6 +310,12 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
                   {evaluation.createdAt 
                     ? formatDistanceToNow(new Date(evaluation.createdAt), { addSuffix: true })
                     : "Unknown"}
+                </span>
+              </div>
+              <div className="flex flex-col pt-2">
+                <span className="text-gray-500 mb-1">User Prompt:</span>
+                <span className="font-medium text-sm bg-gray-50 p-2 rounded break-words">
+                  {evaluation.userPrompt || "None"}
                 </span>
               </div>
             </div>
@@ -382,23 +388,22 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
                   <Progress value={evaluation.score} className="h-2 w-full max-w-md mx-auto" />
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 max-w-md mx-auto">
-                  {evaluation.metrics && 
-                    typeof evaluation.metrics === 'object' && 
-                    Object.entries(evaluation.metrics as Record<string, unknown>)
-                      .filter(([key, value]) => typeof value === 'number' && key !== 'error')
-                      .map(([key, value]) => {
-                        const numValue = typeof value === 'number' ? value : 0;
-                        return (
-                          <div key={key} className="text-center">
-                            <div className="text-sm text-gray-500 capitalize">{key}</div>
-                            <div className="font-semibold">{Math.round(numValue * 100)}%</div>
-                          </div>
-                        );
-                      })}
-                  {(!evaluation.metrics || Object.entries(evaluation.metrics as Record<string, unknown>)
-                    .filter(([key, value]) => typeof value === 'number' && key !== 'error').length === 0) && (
-                    <div className="col-span-4 text-center text-gray-500">No metrics available</div>
-                  )}
+                  {(() => {
+                    const metricsEntries = getMetricsEntries(evaluation.metrics);
+                    
+                    if (metricsEntries.length === 0) {
+                      return (
+                        <div className="col-span-4 text-center text-gray-500">No metrics available</div>
+                      );
+                    }
+                    
+                    return metricsEntries.map(([key, value]) => (
+                      <div key={key} className="text-center">
+                        <div className="text-sm text-gray-500 capitalize">{key}</div>
+                        <div className="font-semibold">{Math.round(value * 100)}%</div>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
             </div>
