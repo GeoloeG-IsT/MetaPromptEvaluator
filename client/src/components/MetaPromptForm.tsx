@@ -17,47 +17,43 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
   const [name, setName] = useState("");
   const [metaPrompt, setMetaPrompt] = useState("");
   const [userPrompt, setUserPrompt] = useState("");
-  const [userInitialPrompt, setUserInitialPrompt] = useState("");
-  const [promptTags, setPromptTags] = useState<string[]>([]);
+  const [processedMetaPrompt, setProcessedMetaPrompt] = useState("");
+  const [llmResponse, setLlmResponse] = useState("");
 
-  // Mutation for generating final prompt based on meta prompt + user input
-  const generateMutation = useMutation({
-    mutationFn: async (data: { initialPrompt: string }) => {
+  // Mutation for generating LLM response using processed meta prompt
+  const generateLLMResponseMutation = useMutation({
+    mutationFn: async (data: { processedPrompt: string }) => {
       const response = await apiRequest(
         "POST", 
-        "/api/generate-meta-prompt", 
+        "/api/generate-llm-response", 
         data
       );
       return response.json();
     },
     onSuccess: (data) => {
-      const generatedPrompt = data.metaPrompt;
-      setUserInitialPrompt(generatedPrompt);
+      const response = data.llmResponse;
+      setLlmResponse(response);
       
-      // Auto-generate tags based on content
-      const autoTags = generateTags(generatedPrompt);
-      setPromptTags(autoTags);
-      
-      // Save the prompt
-      saveGeneratedPrompt(generatedPrompt, autoTags);
+      // Save the prompt and response data
+      saveGeneratedPrompt(processedMetaPrompt, response);
       
       toast({
-        title: "Final prompt generated!",
-        description: "Your final prompt has been generated successfully.",
+        title: "Response generated!",
+        description: "The LLM has generated a response based on your prompt.",
       });
     },
     onError: () => {
       toast({
         title: "Generation failed",
-        description: "There was an error generating the final prompt. Please try again.",
+        description: "There was an error generating the LLM response. Please try again.",
         variant: "destructive",
       });
     }
   });
 
-  // Function to save the generated prompt
-  const saveGeneratedPrompt = (generatedPrompt: string, tags: string[]) => {
-    if (generatedPrompt && name) {
+  // Function to save the generated prompt and LLM response
+  const saveGeneratedPrompt = (processedPrompt: string, llmResponse: string) => {
+    if (processedPrompt && name) {
       // Store info about the user prompt and meta prompt template
       const initialPromptWithContext = `Meta Prompt Template: ${metaPrompt}\nUser Prompt: ${userPrompt}`;
       
@@ -65,38 +61,16 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
         name,
         category: "Other", // Default category
         initialPrompt: initialPromptWithContext,
-        metaPrompt: generatedPrompt,
+        metaPrompt: llmResponse, // Store the LLM response in metaPrompt field
         complexity: "Standard", // Default complexity
         tone: "Balanced", // Default tone
-        tags: tags,
+        tags: [], // No tags as requested
         userId: 1 // Hard-coded for demo
       };
       
-      // Call onSavePrompt with the generated prompt
+      // Call onSavePrompt with the prompt data
       onSavePrompt(promptData as Prompt);
     }
-  };
-
-  // Simple tag generation based on prompt content
-  const generateTags = (text: string): string[] => {
-    const tags = new Set<string>();
-    
-    // Common tag patterns to check for
-    const patternMap = {
-      "Image Analysis": /image|analy[sz]e|visual/i,
-      "Detailed Description": /detail|descri|comprehensive/i,
-      "Structured Format": /structur|format|step/i,
-      "Visual Elements": /visual|element|component/i,
-      "Objective Language": /objective|neutral|unbiased/i,
-    };
-    
-    Object.entries(patternMap).forEach(([tag, pattern]) => {
-      if (pattern.test(text)) {
-        tags.add(tag);
-      }
-    });
-    
-    return Array.from(tags).slice(0, 5); // Limit to 5 tags
   };
 
   const handleGenerateFinalPrompt = () => {
@@ -128,9 +102,13 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
     }
     
     // Replace {{user_prompt}} with the actual user prompt
-    const processedMetaPrompt = metaPrompt.replace(/{{user_prompt}}/g, userPrompt);
+    const processedPrompt = metaPrompt.replace(/{{user_prompt}}/g, userPrompt);
     
-    generateMutation.mutate({ initialPrompt: processedMetaPrompt });
+    // Save the processed prompt for later use
+    setProcessedMetaPrompt(processedPrompt);
+    
+    // Send the processed prompt to the LLM
+    generateLLMResponseMutation.mutate({ processedPrompt });
   };
 
   return (

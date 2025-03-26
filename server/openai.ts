@@ -4,6 +4,34 @@ import { DatasetItem } from "@shared/schema";
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Generate a response using a processed meta prompt
+export async function generateLLMResponse(
+  processedPrompt: string
+): Promise<string> {
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant."
+        },
+        {
+          role: "user",
+          content: processedPrompt
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
+    });
+
+    return response.choices[0].message.content || "Failed to generate response";
+  } catch (error) {
+    console.error("Error generating LLM response:", error);
+    throw new Error("Failed to generate response from LLM");
+  }
+}
+
 export async function generateMetaPrompt(
   initialPrompt: string,
   complexity: string = "Standard",

@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateMetaPrompt, evaluatePrompt } from "./openai";
+import { generateMetaPrompt, evaluatePrompt, generateLLMResponse } from "./openai";
 import { z } from "zod";
 import { 
   insertPromptSchema, 
@@ -187,6 +187,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error generating meta prompt:", error);
       res.status(500).json({ message: "Failed to generate meta prompt" });
+    }
+  });
+  
+  // Generate LLM response
+  app.post("/api/generate-llm-response", async (req: Request, res: Response) => {
+    try {
+      const { processedPrompt } = req.body;
+      
+      if (!processedPrompt) {
+        return res.status(400).json({ message: "Processed prompt is required" });
+      }
+      
+      const llmResponse = await generateLLMResponse(processedPrompt);
+      res.json({ llmResponse });
+    } catch (error) {
+      console.error("Error generating LLM response:", error);
+      res.status(500).json({ message: "Failed to generate LLM response" });
     }
   });
 
