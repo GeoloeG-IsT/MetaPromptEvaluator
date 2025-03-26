@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import MetaPromptDialog from './MetaPromptDialog';
+import EvaluationDialog from './EvaluationDialog';
 
 interface PromptTableProps {
   prompts: Prompt[];
@@ -32,6 +33,7 @@ export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) 
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | undefined>(undefined);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEvaluateDialogOpen, setIsEvaluateDialogOpen] = useState(false);
 
   // Delete prompt mutation
   const deletePromptMutation = useMutation({
@@ -69,6 +71,11 @@ export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) 
   const handleDelete = (prompt: Prompt) => {
     setSelectedPrompt(prompt);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleEvaluate = (prompt: Prompt) => {
+    setSelectedPrompt(prompt);
+    setIsEvaluateDialogOpen(true);
   };
 
   const confirmDelete = () => {
@@ -117,8 +124,18 @@ export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) 
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="text-green-600 hover:text-green-800 mr-1"
+                      onClick={() => handleEvaluate(prompt)}
+                      title="Evaluate prompt"
+                    >
+                      <span className="material-icons text-sm">assessment</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       className="text-slate-600 hover:text-slate-900"
                       onClick={() => handleEdit(prompt)}
+                      title="Edit prompt"
                     >
                       <span className="material-icons text-sm">edit</span>
                     </Button>
@@ -127,6 +144,7 @@ export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) 
                       size="sm"
                       className="text-red-500 hover:text-red-700"
                       onClick={() => handleDelete(prompt)}
+                      title="Delete prompt"
                     >
                       <span className="material-icons text-sm">delete</span>
                     </Button>
@@ -165,6 +183,15 @@ export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Evaluate Dialog */}
+      {selectedPrompt && (
+        <EvaluationDialog
+          isOpen={isEvaluateDialogOpen}
+          onClose={() => setIsEvaluateDialogOpen(false)}
+          prompt={selectedPrompt}
+        />
+      )}
     </div>
   );
 }

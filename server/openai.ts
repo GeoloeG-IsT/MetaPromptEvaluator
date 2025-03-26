@@ -85,7 +85,8 @@ export async function evaluatePrompt(
   metaPrompt: string,
   datasetItems: DatasetItem[],
   validationMethod: string,
-  priority: string
+  priority: string,
+  userPrompt?: string
 ): Promise<EvaluationResultItem[]> {
   const results: EvaluationResultItem[] = [];
   
@@ -101,7 +102,7 @@ export async function evaluatePrompt(
   for (const item of datasetItems) {
     try {
       // Generate a response using the meta prompt and the input image
-      const generatedResponse = await simulateImageResponseGeneration(metaPrompt, item.inputImage);
+      const generatedResponse = await simulateImageResponseGeneration(metaPrompt, item.inputImage, userPrompt);
       
       // Evaluate the generated response against the valid response
       const evaluationResult = await evaluateResponse(
@@ -132,8 +133,13 @@ export async function evaluatePrompt(
   return results;
 }
 
-async function simulateImageResponseGeneration(metaPrompt: string, imageUrl: string): Promise<string> {
+async function simulateImageResponseGeneration(metaPrompt: string, imageUrl: string, userPrompt?: string): Promise<string> {
   try {
+    // Check if the meta prompt contains the {{user_prompt}} placeholder
+    const processedMetaPrompt = userPrompt 
+      ? metaPrompt.replace(/{{user_prompt}}/g, userPrompt)
+      : metaPrompt;
+    
     // In a real implementation, this would use OpenAI's vision capabilities
     // We'd pass the image URL or base64 to the API
     const response = await openai.chat.completions.create({
@@ -141,14 +147,14 @@ async function simulateImageResponseGeneration(metaPrompt: string, imageUrl: str
       messages: [
         {
           role: "system",
-          content: metaPrompt
+          content: processedMetaPrompt
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: "Please generate a response for this image."
+              text: userPrompt || "Please generate a response for this image."
             },
             // In a real app, we would include the actual image here
             // Since we don't have real images, we simulate with a text description
