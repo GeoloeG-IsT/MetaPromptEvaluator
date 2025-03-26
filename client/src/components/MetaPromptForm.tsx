@@ -16,6 +16,7 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [metaPrompt, setMetaPrompt] = useState("");
+  const [userPrompt, setUserPrompt] = useState("");
   const [userInitialPrompt, setUserInitialPrompt] = useState("");
   const [promptTags, setPromptTags] = useState<string[]>([]);
 
@@ -57,10 +58,13 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
   // Function to save the generated prompt
   const saveGeneratedPrompt = (generatedPrompt: string, tags: string[]) => {
     if (generatedPrompt && name) {
+      // Store info about the user prompt and meta prompt template
+      const initialPromptWithContext = `Meta Prompt Template: ${metaPrompt}\nUser Prompt: ${userPrompt}`;
+      
       const promptData = {
         name,
         category: "Other", // Default category
-        initialPrompt: metaPrompt,
+        initialPrompt: initialPromptWithContext,
         metaPrompt: generatedPrompt,
         complexity: "Standard", // Default complexity
         tone: "Balanced", // Default tone
@@ -114,7 +118,19 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
       return;
     }
     
-    generateMutation.mutate({ initialPrompt: metaPrompt });
+    if (!userPrompt.trim()) {
+      toast({
+        title: "Missing user prompt",
+        description: "Please enter a user prompt first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Replace {{user_prompt}} with the actual user prompt
+    const processedMetaPrompt = metaPrompt.replace(/{{user_prompt}}/g, userPrompt);
+    
+    generateMutation.mutate({ initialPrompt: processedMetaPrompt });
   };
 
   return (
@@ -148,10 +164,28 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
         
         {/* Right Panel */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium mb-4">User Initial Prompt</h3>
+          <h3 className="text-lg font-medium mb-4">User Input & Generated Prompt</h3>
           
-          <div className="p-4 bg-gray-50 rounded-md mb-4 code-editor overflow-auto max-h-96 custom-scrollbar">
-            <pre className="text-sm whitespace-pre-wrap">{userInitialPrompt || "Your generated prompt will appear here..."}</pre>
+          <div className="mb-4">
+            <label htmlFor="user-prompt" className="block text-sm font-medium text-gray-700 mb-1">User Prompt</label>
+            <Textarea 
+              id="user-prompt" 
+              rows={4} 
+              className="code-editor"
+              placeholder="Enter the user prompt here (will replace the template placeholder)"
+              value={userPrompt}
+              onChange={(e) => setUserPrompt(e.target.value)}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              This will replace <code>{"{{user_prompt}}"}</code> in your meta prompt template.
+            </p>
+          </div>
+          
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Generated Prompt</label>
+            <div className="p-4 bg-gray-50 rounded-md code-editor overflow-auto max-h-96 custom-scrollbar">
+              <pre className="text-sm whitespace-pre-wrap">{userInitialPrompt || "Your generated prompt will appear here..."}</pre>
+            </div>
           </div>
           
           <div className="flex flex-wrap gap-3 mb-6">
@@ -165,7 +199,7 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
           <div className="flex flex-wrap gap-3">
             <Button 
               className="ml-auto" 
-              disabled={generateMutation.isPending || !metaPrompt.trim()}
+              disabled={generateMutation.isPending || !metaPrompt.trim() || !userPrompt.trim()}
               onClick={handleGenerateFinalPrompt}
             >
               <span className="material-icons text-sm mr-1">auto_awesome</span>
