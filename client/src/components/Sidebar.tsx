@@ -71,7 +71,7 @@ export default function Sidebar({ isOpen, onClose, currentPath }: SidebarProps) 
           </div>
           <div className="ml-2">
             <p className="text-sm font-medium">{user?.username || "Guest User"}</p>
-            <p className="text-xs text-gray-500">{user?.email || "No email"}</p>
+            <p className="text-xs text-gray-500">User</p>
           </div>
         </div>
       </div>

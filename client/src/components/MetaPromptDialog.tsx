@@ -185,10 +185,7 @@ export default function MetaPromptDialog({
       userId: 1, // Hard-coded for demo
     };
     
-    // Add id for updating if in edit mode
-    if (isEditing && existingPrompt) {
-      promptData.id = existingPrompt.id;
-    }
+    // For edit mode, we'll use the proper API endpoint with PUT
     
     // Save the prompt
     savePromptMutation.mutate(promptData);
