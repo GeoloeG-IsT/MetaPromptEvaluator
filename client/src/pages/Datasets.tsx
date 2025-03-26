@@ -304,7 +304,7 @@ export default function Datasets() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Input</TableHead>
                     <TableHead>Valid Response</TableHead>
                     <TableHead>Actions</TableHead>
@@ -313,11 +313,15 @@ export default function Datasets() {
                 <TableBody>
                   {datasetItems.map((item) => (
                     <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.id}</TableCell>
+                      <TableCell>
+                        <Badge variant={item.inputType === 'text' ? 'outline' : 'secondary'}>
+                          {item.inputType === 'text' ? 'Text' : 'Image'}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         {item.inputType === 'text' ? (
-                          <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
-                            <span className="material-icons text-gray-400">text_fields</span>
+                          <div className="max-w-md p-2 bg-gray-50 rounded text-sm overflow-hidden">
+                            <div className="line-clamp-2">{item.inputText}</div>
                           </div>
                         ) : item.inputImage ? (
                           <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
@@ -327,7 +331,10 @@ export default function Datasets() {
                               className="max-h-full max-w-full object-cover"
                               onError={(e) => {
                                 e.currentTarget.src = '';
-                                e.currentTarget.parentElement.innerHTML = '<span class="material-icons text-gray-400">broken_image</span>';
+                                const parent = e.currentTarget.parentElement;
+                                if (parent) {
+                                  parent.innerHTML = '<span class="material-icons text-gray-400">broken_image</span>';
+                                }
                               }}
                             />
                           </div>
@@ -341,12 +348,14 @@ export default function Datasets() {
                         <div className="truncate">{item.validResponse}</div>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">
-                          <span className="material-icons text-sm">edit</span>
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <span className="material-icons text-sm">delete</span>
-                        </Button>
+                        <div className="flex space-x-1">
+                          <Button variant="ghost" size="sm">
+                            <span className="material-icons text-sm">edit</span>
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <span className="material-icons text-sm">delete</span>
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
