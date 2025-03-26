@@ -306,17 +306,45 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle>Evaluation Summary</CardTitle>
-          {(evaluation.status === 'pending' || evaluation.status === 'failed') && (
-            <Button 
-              onClick={() => runEvaluationMutation.mutate()}
-              disabled={runEvaluationMutation.isPending}
-              size="sm"
-              className="ml-auto"
-            >
-              <span className="material-icons text-sm mr-1">play_arrow</span>
-              {runEvaluationMutation.isPending ? 'Starting...' : 'Run'}
-            </Button>
-          )}
+          <div className="flex gap-2">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="border-red-200 text-red-600 hover:bg-red-50">
+                  <span className="material-icons text-sm mr-1">delete</span>
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the evaluation
+                    and all its results from the server.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteEvaluationMutation.mutate()}
+                    className="bg-red-600 hover:bg-red-700"
+                    disabled={deleteEvaluationMutation.isPending}
+                  >
+                    {deleteEvaluationMutation.isPending ? 'Deleting...' : 'Delete Evaluation'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            {(evaluation.status === 'pending' || evaluation.status === 'failed') && (
+              <Button 
+                onClick={() => runEvaluationMutation.mutate()}
+                disabled={runEvaluationMutation.isPending}
+                size="sm"
+              >
+                <span className="material-icons text-sm mr-1">play_arrow</span>
+                {runEvaluationMutation.isPending ? 'Starting...' : 'Run'}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -406,18 +434,25 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
                 <div className="mt-2">
                   <Progress value={evaluation.score} className="h-2 w-full max-w-md mx-auto" />
                 </div>
-                {evaluation.metrics && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 max-w-md mx-auto">
-                    {Object.entries(evaluation.metrics as Record<string, number | string>).map(([key, value]) => (
-                      typeof value === 'number' && key !== 'error' && (
-                        <div key={key} className="text-center">
-                          <div className="text-sm text-gray-500 capitalize">{key}</div>
-                          <div className="font-semibold">{Math.round(value * 100)}%</div>
-                        </div>
-                      )
-                    ))}
-                  </div>
-                )}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 max-w-md mx-auto">
+                  {evaluation.metrics && 
+                    typeof evaluation.metrics === 'object' && 
+                    Object.entries(evaluation.metrics as any)
+                      .filter(([key, value]) => typeof value === 'number' && key !== 'error')
+                      .map(([key, value]) => {
+                        const numValue = typeof value === 'number' ? value : 0;
+                        return (
+                          <div key={key} className="text-center">
+                            <div className="text-sm text-gray-500 capitalize">{key}</div>
+                            <div className="font-semibold">{Math.round(numValue * 100)}%</div>
+                          </div>
+                        );
+                      })}
+                  {(!evaluation.metrics || Object.entries(evaluation.metrics as any)
+                    .filter(([key, value]) => typeof value === 'number' && key !== 'error').length === 0) && (
+                    <div className="col-span-4 text-center text-gray-500">No metrics available</div>
+                  )}
+                </div>
               </div>
             </div>
           )}

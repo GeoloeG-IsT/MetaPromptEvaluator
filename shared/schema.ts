@@ -77,6 +77,7 @@ export const evaluations = pgTable("evaluations", {
   datasetId: integer("dataset_id").notNull(),
   validationMethod: text("validation_method").notNull(),
   priority: text("priority").default("Balanced"),
+  userPrompt: text("user_prompt"),
   score: integer("score"),
   metrics: jsonb("metrics"), // Store metrics like accuracy, completeness, etc.
   status: text("status").default("pending"),

@@ -12,9 +12,9 @@ import EvaluationDetail from "@/components/EvaluationDetail";
 
 export default function Evaluations() {
   const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false);
-  const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  const [selectedPrompt, setSelectedPrompt] = useState<Prompt | undefined>(undefined);
   const [selectedEvaluationId, setSelectedEvaluationId] = useState<number | null>(null);
-  const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | null>(null);
+  const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | undefined>(undefined);
   
   const { data: evaluations, isLoading } = useQuery<Evaluation[]>({
     queryKey: ["/api/evaluations"],
@@ -41,15 +41,15 @@ export default function Evaluations() {
   // Function to open the edit dialog
   const openEditDialog = (evaluation: Evaluation) => {
     setSelectedEvaluation(evaluation);
-    setSelectedPrompt(null);
+    setSelectedPrompt(undefined);
     setIsEvaluationDialogOpen(true);
   };
   
   // Close the dialog and reset selection
   const closeDialog = () => {
     setIsEvaluationDialogOpen(false);
-    setSelectedEvaluation(null);
-    setSelectedPrompt(null);
+    setSelectedEvaluation(undefined);
+    setSelectedPrompt(undefined);
   };
 
   function getStatusBadge(status: string) {

@@ -13,8 +13,8 @@ import { useLocation } from 'wouter';
 interface EvaluationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  prompt?: Prompt; // Make prompt optional as we'll now select it from a dropdown
-  evaluation?: Evaluation; // Add evaluation prop for editing existing evaluations
+  prompt?: Prompt | undefined; // Make prompt optional as we'll now select it from a dropdown
+  evaluation?: Evaluation | undefined; // Add evaluation prop for editing existing evaluations
 }
 
 export default function EvaluationDialog({
@@ -59,7 +59,8 @@ export default function EvaluationDialog({
       return await apiRequest('POST', '/api/evaluations', {
         ...data,
         validationMethod: 'Comprehensive', // Default value
-        priority: 'Balanced' // Default value
+        priority: 'Balanced', // Default value
+        userPrompt
       });
     },
     onSuccess: (response: any) => {
@@ -118,7 +119,9 @@ export default function EvaluationDialog({
       if (evaluation) {
         setPromptId(evaluation.promptId);
         setDatasetId(evaluation.datasetId);
-        // Get user prompt if available (to be implemented in schema)
+        if (evaluation.userPrompt) {
+          setUserPrompt(evaluation.userPrompt);
+        }
       } 
       // Otherwise use the initial prompt if provided
       else if (initialPrompt) {
@@ -158,7 +161,8 @@ export default function EvaluationDialog({
         promptId: data.promptId,
         datasetId: data.datasetId,
         validationMethod: 'Comprehensive', // Default value
-        priority: 'Balanced' // Default value
+        priority: 'Balanced', // Default value
+        userPrompt
       });
     },
     onSuccess: () => {
@@ -212,7 +216,8 @@ export default function EvaluationDialog({
           promptId,
           datasetId,
           validationMethod: 'Comprehensive', // Default value
-          priority: 'Balanced' // Default value
+          priority: 'Balanced', // Default value
+          userPrompt
         });
         
         setIsSaving(false);

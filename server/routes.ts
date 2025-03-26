@@ -298,7 +298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/evaluations/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const { promptId, datasetId, validationMethod, priority } = req.body;
+      const { promptId, datasetId, validationMethod, priority, userPrompt } = req.body;
       
       // Ensure the evaluation exists
       const existingEvaluation = await storage.getEvaluation(id);
@@ -319,6 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (datasetId !== undefined) updateData.datasetId = datasetId;
       if (validationMethod !== undefined) updateData.validationMethod = validationMethod;
       if (priority !== undefined) updateData.priority = priority;
+      if (userPrompt !== undefined) updateData.userPrompt = userPrompt;
       
       // Update the evaluation
       const updatedEvaluation = await storage.updateEvaluation(id, updateData);
