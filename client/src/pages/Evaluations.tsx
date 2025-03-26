@@ -90,16 +90,7 @@ export default function Evaluations() {
       </div>
 
       <div className="flex justify-between">
-        <div className="flex space-x-2">
-          <Button variant="outline">
-            <span className="material-icons text-sm mr-1">filter_list</span>
-            Filter
-          </Button>
-          <Button variant="outline">
-            <span className="material-icons text-sm mr-1">sort</span>
-            Sort
-          </Button>
-        </div>
+        <div></div>
         <Button onClick={() => {
           if (prompts.length > 0) {
             setSelectedPrompt(prompts[0]);

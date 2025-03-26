@@ -31,11 +31,9 @@ export default function EvaluationDialog({
   const [userPrompt, setUserPrompt] = useState('');
   const [promptId, setPromptId] = useState<number | null>(null);
   const [datasetId, setDatasetId] = useState<number | null>(null);
-  const [validationMethod, setValidationMethod] = useState('Comprehensive');
-  const [priority, setPriority] = useState('Balanced');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Fetch available datasets
   const { data: datasets = [] } = useQuery({
     queryKey: ['/api/datasets'],
@@ -56,10 +54,13 @@ export default function EvaluationDialog({
     mutationFn: async (data: {
       promptId: number;
       datasetId: number;
-      validationMethod: string;
-      priority: string;
     }) => {
-      return await apiRequest('POST', '/api/evaluations', data);
+      // Use default values for validation method and priority since they're being removed from UI
+      return await apiRequest('POST', '/api/evaluations', {
+        ...data,
+        validationMethod: 'Comprehensive', // Default value
+        priority: 'Balanced' // Default value
+      });
     },
     onSuccess: (response: any) => {
       // Access id from response
@@ -112,15 +113,12 @@ export default function EvaluationDialog({
     if (isOpen) {
       // Set default values first
       setUserPrompt('');
-      setValidationMethod('Comprehensive');
-      setPriority('Balanced');
       
       // If editing an existing evaluation, use its values
       if (evaluation) {
         setPromptId(evaluation.promptId);
         setDatasetId(evaluation.datasetId);
-        setValidationMethod(evaluation.validationMethod || 'Comprehensive');
-        setPriority(evaluation.priority || 'Balanced');
+        // Get user prompt if available (to be implemented in schema)
       } 
       // Otherwise use the initial prompt if provided
       else if (initialPrompt) {
@@ -155,14 +153,12 @@ export default function EvaluationDialog({
       id: number;
       promptId: number;
       datasetId: number;
-      validationMethod: string;
-      priority: string;
     }) => {
       return await apiRequest('PUT', `/api/evaluations/${data.id}`, {
         promptId: data.promptId,
         datasetId: data.datasetId,
-        validationMethod: data.validationMethod,
-        priority: data.priority
+        validationMethod: 'Comprehensive', // Default value
+        priority: 'Balanced' // Default value
       });
     },
     onSuccess: () => {
@@ -205,19 +201,18 @@ export default function EvaluationDialog({
       updateEvaluationMutation.mutate({
         id: evaluation.id,
         promptId,
-        datasetId,
-        validationMethod,
-        priority
+        datasetId
       });
     } 
     // Otherwise create a new evaluation
     else {
       try {
+        // Use default values for validation method and priority
         const response = await apiRequest('POST', '/api/evaluations', {
           promptId,
           datasetId,
-          validationMethod,
-          priority
+          validationMethod: 'Comprehensive', // Default value
+          priority: 'Balanced' // Default value
         });
         
         setIsSaving(false);
@@ -257,9 +252,7 @@ export default function EvaluationDialog({
     
     createEvaluationMutation.mutate({
       promptId,
-      datasetId,
-      validationMethod,
-      priority
+      datasetId
     });
   };
   
@@ -343,41 +336,9 @@ export default function EvaluationDialog({
             )}
           </div>
           
-          {/* Validation method selection */}
-          <div className="space-y-2">
-            <Label htmlFor="validationMethod">Validation Method</Label>
-            <Select
-              value={validationMethod}
-              onValueChange={(value) => setValidationMethod(value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Comprehensive">Comprehensive Evaluation</SelectItem>
-                <SelectItem value="Semantic">Semantic Similarity</SelectItem>
-                <SelectItem value="Output Format">Output Format Validation</SelectItem>
-                <SelectItem value="Content Quality">Content Quality Assessment</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Priority selection */}
-          <div className="space-y-2">
-            <Label htmlFor="priority">Priority</Label>
-            <Select
-              value={priority}
-              onValueChange={(value) => setPriority(value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Balanced">Balanced</SelectItem>
-                <SelectItem value="Speed (Fast, Less Accurate)">Speed (Fast, Less Accurate)</SelectItem>
-                <SelectItem value="Accuracy (Slower, More Precise)">Accuracy (Slower, More Precise)</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Note about default settings */}
+          <div className="text-sm text-gray-500 mt-4">
+            <p>Default validation will use comprehensive evaluation with balanced accuracy/speed settings.</p>
           </div>
           
           <DialogFooter className="gap-2 mt-4">

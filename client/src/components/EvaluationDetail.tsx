@@ -270,14 +270,10 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
                 </AlertDialogContent>
               </AlertDialog>
 
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
-                <span className="material-icons text-sm mr-1">edit</span>
-                Edit Details
-              </Button>
               {onEdit && (
                 <Button variant="outline" onClick={() => onEdit(evaluation)}>
-                  <span className="material-icons text-sm mr-1">settings</span>
-                  Advanced Edit
+                  <span className="material-icons text-sm mr-1">edit</span>
+                  Edit
                 </Button>
               )}
               {(evaluation.status === 'pending' || evaluation.status === 'failed') && (
@@ -308,8 +304,19 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
 
       {/* Evaluation Summary */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle>Evaluation Summary</CardTitle>
+          {(evaluation.status === 'pending' || evaluation.status === 'failed') && (
+            <Button 
+              onClick={() => runEvaluationMutation.mutate()}
+              disabled={runEvaluationMutation.isPending}
+              size="sm"
+              className="ml-auto"
+            >
+              <span className="material-icons text-sm mr-1">play_arrow</span>
+              {runEvaluationMutation.isPending ? 'Starting...' : 'Run'}
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
