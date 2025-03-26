@@ -45,9 +45,12 @@ export default function Datasets() {
     category: "Vision",
   });
   const [newDatasetItem, setNewDatasetItem] = useState({
+    inputType: "text", // Can be "text" or "image"
+    inputText: "",
     inputImage: "",
     validResponse: "",
   });
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   
   // Fetch datasets
   const { data: datasets, isLoading } = useQuery<Dataset[]>({
@@ -105,7 +108,13 @@ export default function Datasets() {
         description: "The item has been added to the dataset successfully.",
       });
       setIsAddItemDialogOpen(false);
-      setNewDatasetItem({ inputImage: "", validResponse: "" });
+      setNewDatasetItem({
+        inputType: "text",
+        inputText: "",
+        inputImage: "",
+        validResponse: "",
+      });
+      setUploadedImage(null);
       if (selectedDataset) {
         queryClient.invalidateQueries({ queryKey: ["/api/datasets", selectedDataset.id, "items"] });
         queryClient.invalidateQueries({ queryKey: ["/api/datasets"] });
@@ -143,19 +152,42 @@ export default function Datasets() {
       return;
     }
     
-    if (!newDatasetItem.inputImage || !newDatasetItem.validResponse) {
+    // Check for required fields based on input type
+    if (newDatasetItem.inputType === "text" && !newDatasetItem.inputText) {
       toast({
-        title: "Missing fields",
-        description: "Please fill in all fields.",
+        title: "Missing input text",
+        description: "Please provide input text.",
         variant: "destructive",
       });
       return;
     }
     
-    addDatasetItemMutation.mutate({
+    if (newDatasetItem.inputType === "image" && !newDatasetItem.inputImage && !uploadedImage) {
+      toast({
+        title: "Missing image",
+        description: "Please provide an image URL or upload an image.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!newDatasetItem.validResponse) {
+      toast({
+        title: "Missing valid response",
+        description: "Please provide the expected valid response.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // If we have an uploaded image, use that instead of the URL
+    const itemToAdd = {
       ...newDatasetItem,
+      inputImage: uploadedImage || newDatasetItem.inputImage,
       datasetId: selectedDataset.id,
-    });
+    };
+    
+    addDatasetItemMutation.mutate(itemToAdd);
   };
   
   const viewDataset = (dataset: Dataset) => {

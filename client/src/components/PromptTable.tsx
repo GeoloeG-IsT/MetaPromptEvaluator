@@ -21,11 +21,12 @@ import EvaluationDialog from './EvaluationDialog';
 interface PromptTableProps {
   prompts: Prompt[];
   onCreateNew: () => void;
+  onEvaluate?: (prompt: Prompt) => void;
 }
 
 // Category badges removed as requested
 
-export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) {
+export default function PromptTable({ prompts, onCreateNew, onEvaluate }: PromptTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -74,8 +75,14 @@ export default function PromptTable({ prompts, onCreateNew }: PromptTableProps) 
   };
 
   const handleEvaluate = (prompt: Prompt) => {
-    setSelectedPrompt(prompt);
-    setIsEvaluateDialogOpen(true);
+    if (onEvaluate) {
+      // Use the prop function if provided (from Dashboard)
+      onEvaluate(prompt);
+    } else {
+      // Use the local dialog otherwise
+      setSelectedPrompt(prompt);
+      setIsEvaluateDialogOpen(true);
+    }
   };
 
   const confirmDelete = () => {

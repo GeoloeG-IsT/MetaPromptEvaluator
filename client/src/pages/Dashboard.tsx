@@ -3,9 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Prompt } from "@shared/schema";
 import PromptTable from "@/components/PromptTable";
 import MetaPromptDialog from "@/components/MetaPromptDialog";
+import EvaluationDialog from "@/components/EvaluationDialog";
 
 export default function Dashboard() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false);
+  const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   
   const { data: prompts, isLoading: promptsLoading } = useQuery<Prompt[]>({
     queryKey: ["/api/prompts"],
@@ -13,6 +16,11 @@ export default function Dashboard() {
   
   const handleCreateNewPrompt = () => {
     setIsCreateDialogOpen(true);
+  };
+  
+  const handleEvaluatePrompt = (prompt: Prompt) => {
+    setSelectedPrompt(prompt);
+    setIsEvaluationDialogOpen(true);
   };
 
   return (
@@ -25,7 +33,8 @@ export default function Dashboard() {
       {/* Meta Prompts Table */}
       <PromptTable 
         prompts={prompts || []} 
-        onCreateNew={handleCreateNewPrompt} 
+        onCreateNew={handleCreateNewPrompt}
+        onEvaluate={handleEvaluatePrompt}
       />
       
       {/* Create Meta Prompt Dialog */}
@@ -33,6 +42,15 @@ export default function Dashboard() {
         isOpen={isCreateDialogOpen}
         onClose={() => setIsCreateDialogOpen(false)}
       />
+      
+      {/* Evaluation Dialog */}
+      {selectedPrompt && (
+        <EvaluationDialog
+          isOpen={isEvaluationDialogOpen}
+          onClose={() => setIsEvaluationDialogOpen(false)}
+          prompt={selectedPrompt}
+        />
+      )}
     </div>
   );
 }
