@@ -72,7 +72,12 @@ export default function Evaluations() {
     return (
       <EvaluationDetail 
         evaluationId={selectedEvaluationId} 
-        onBack={closeEvaluationDetail} 
+        onBack={closeEvaluationDetail}
+        onEdit={(evaluation) => {
+          setSelectedEvaluation(evaluation);
+          setSelectedEvaluationId(null);
+          setIsEvaluationDialogOpen(true);
+        }}
       />
     );
   }

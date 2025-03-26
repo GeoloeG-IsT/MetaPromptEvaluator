@@ -31,7 +31,7 @@ interface EvaluationDetailProps {
   onEdit?: (evaluation: Evaluation) => void;
 }
 
-export default function EvaluationDetail({ evaluationId, onBack }: EvaluationDetailProps) {
+export default function EvaluationDetail({ evaluationId, onBack, onEdit }: EvaluationDetailProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
@@ -274,6 +274,12 @@ export default function EvaluationDetail({ evaluationId, onBack }: EvaluationDet
                 <span className="material-icons text-sm mr-1">edit</span>
                 Edit Details
               </Button>
+              {onEdit && (
+                <Button variant="outline" onClick={() => onEdit(evaluation)}>
+                  <span className="material-icons text-sm mr-1">settings</span>
+                  Advanced Edit
+                </Button>
+              )}
               {(evaluation.status === 'pending' || evaluation.status === 'failed') && (
                 <Button 
                   onClick={() => runEvaluationMutation.mutate()}
