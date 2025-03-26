@@ -1,15 +1,25 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Evaluation } from "@shared/schema";
+import { Evaluation, Prompt } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import EvaluationDialog from "@/components/EvaluationDialog";
 
 export default function Evaluations() {
+  const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false);
+  const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  
   const { data: evaluations, isLoading } = useQuery<Evaluation[]>({
     queryKey: ["/api/evaluations"],
+  });
+  
+  // Fetch prompts for the dialog
+  const { data: prompts = [] } = useQuery<Prompt[]>({
+    queryKey: ["/api/prompts"],
   });
 
   // Group evaluations by status
@@ -50,7 +60,12 @@ export default function Evaluations() {
             Sort
           </Button>
         </div>
-        <Button>
+        <Button onClick={() => {
+          if (prompts.length > 0) {
+            setSelectedPrompt(prompts[0]);
+            setIsEvaluationDialogOpen(true);
+          }
+        }}>
           <span className="material-icons text-sm mr-1">add</span>
           New Evaluation
         </Button>
@@ -273,6 +288,15 @@ export default function Evaluations() {
           )}
         </TabsContent>
       </Tabs>
+      
+      {/* EvaluationDialog component */}
+      {selectedPrompt && (
+        <EvaluationDialog
+          isOpen={isEvaluationDialogOpen}
+          onClose={() => setIsEvaluationDialogOpen(false)}
+          prompt={selectedPrompt}
+        />
+      )}
     </div>
   );
 }

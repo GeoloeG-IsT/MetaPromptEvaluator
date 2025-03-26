@@ -13,13 +13,13 @@ import { useLocation } from 'wouter';
 interface EvaluationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  prompt: Prompt;
+  prompt?: Prompt; // Make prompt optional as we'll now select it from a dropdown
 }
 
 export default function EvaluationDialog({
   isOpen,
   onClose,
-  prompt
+  prompt: initialPrompt // Rename to initialPrompt to avoid confusion
 }: EvaluationDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -27,16 +27,27 @@ export default function EvaluationDialog({
   
   // Form state
   const [userPrompt, setUserPrompt] = useState('');
+  const [promptId, setPromptId] = useState<number | null>(null);
   const [datasetId, setDatasetId] = useState<number | null>(null);
   const [validationMethod, setValidationMethod] = useState('Comprehensive');
   const [priority, setPriority] = useState('Balanced');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Fetch available datasets
   const { data: datasets = [] } = useQuery({
     queryKey: ['/api/datasets'],
     queryFn: getQueryFn<Dataset[]>({ on401: 'returnNull' })
   });
+  
+  // Fetch available prompts
+  const { data: prompts = [] } = useQuery<Prompt[]>({
+    queryKey: ['/api/prompts'],
+    queryFn: getQueryFn<Prompt[]>({ on401: 'returnNull' })
+  });
+  
+  // Get selected prompt
+  const selectedPrompt = prompts.find(p => p.id === promptId);
   
   // Create evaluation
   const createEvaluationMutation = useMutation({
@@ -98,6 +109,15 @@ export default function EvaluationDialog({
   useEffect(() => {
     if (isOpen) {
       setUserPrompt('');
+      // If an initial prompt was provided, use it
+      if (initialPrompt) {
+        setPromptId(initialPrompt.id);
+      } else if (prompts.length > 0) {
+        setPromptId(prompts[0].id);
+      } else {
+        setPromptId(null);
+      }
+      
       if (datasets.length > 0) {
         setDatasetId(datasets[0].id);
       } else {
@@ -106,16 +126,56 @@ export default function EvaluationDialog({
       setValidationMethod('Comprehensive');
       setPriority('Balanced');
     }
-  }, [isOpen, datasets]);
+  }, [isOpen, datasets, prompts, initialPrompt]);
+  
+  // Handle save evaluation without running
+  const handleSaveEvaluation = async () => {
+    if (!promptId || !datasetId) {
+      toast({
+        title: 'Required fields missing',
+        description: 'Please select both a prompt and a dataset.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      const response = await apiRequest('POST', '/api/evaluations', {
+        promptId,
+        datasetId,
+        validationMethod,
+        priority
+      });
+      
+      setIsSaving(false);
+      toast({
+        title: 'Evaluation saved',
+        description: 'The evaluation has been saved and can be run later.'
+      });
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({queryKey: ['/api/evaluations']});
+      onClose();
+    } catch (error) {
+      setIsSaving(false);
+      toast({
+        title: 'Save failed',
+        description: 'There was an error saving the evaluation. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
   
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!datasetId) {
+    if (!promptId || !datasetId) {
       toast({
-        title: 'Dataset required',
-        description: 'Please select a dataset for evaluation.',
+        title: 'Required fields missing',
+        description: 'Please select both a prompt and a dataset.',
         variant: 'destructive'
       });
       return;
@@ -124,7 +184,7 @@ export default function EvaluationDialog({
     setIsLoading(true);
     
     createEvaluationMutation.mutate({
-      promptId: prompt.id,
+      promptId,
       datasetId,
       validationMethod,
       priority
@@ -132,24 +192,55 @@ export default function EvaluationDialog({
   };
   
   // Show meta prompt with highlighted placeholders
-  const highlightedPrompt = prompt.metaPrompt?.replace(/\{\{user_prompt\}\}/g, '<span class="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">{{user_prompt}}</span>') || '';
+  const highlightedPrompt = selectedPrompt?.metaPrompt?.replace(/\{\{user_prompt\}\}/g, '<span class="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">{{user_prompt}}</span>') || '';
   
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Evaluate Meta Prompt: {prompt.name}</DialogTitle>
+          <DialogTitle>Create New Evaluation</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          {/* Meta prompt preview */}
+          {/* Meta prompt selection */}
           <div className="space-y-2">
-            <Label>Meta Prompt Template</Label>
-            <div 
-              className="border rounded-md p-3 bg-gray-50 dark:bg-gray-900 h-32 overflow-y-auto text-sm"
-              dangerouslySetInnerHTML={{ __html: highlightedPrompt }}
-            />
+            <Label htmlFor="prompt">Meta Prompt</Label>
+            <Select
+              value={promptId?.toString() || ''}
+              onValueChange={(value) => setPromptId(parseInt(value))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a meta prompt" />
+              </SelectTrigger>
+              <SelectContent>
+                {prompts.length === 0 ? (
+                  <SelectItem value="none" disabled>No prompts available</SelectItem>
+                ) : (
+                  prompts.map((prompt) => (
+                    <SelectItem key={prompt.id} value={prompt.id.toString()}>
+                      {prompt.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {prompts.length === 0 && (
+              <p className="text-xs text-red-500 mt-1">
+                Please create a meta prompt before evaluating.
+              </p>
+            )}
           </div>
+          
+          {/* Meta prompt preview */}
+          {selectedPrompt && (
+            <div className="space-y-2">
+              <Label>Meta Prompt Template</Label>
+              <div 
+                className="border rounded-md p-3 bg-gray-50 dark:bg-gray-900 h-32 overflow-y-auto text-sm"
+                dangerouslySetInnerHTML={{ __html: highlightedPrompt }}
+              />
+            </div>
+          )}
           
           {/* User prompt input */}
           <div className="space-y-2">
@@ -234,13 +325,21 @@ export default function EvaluationDialog({
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={isLoading}
+              disabled={isLoading || isSaving}
             >
               Cancel
             </Button>
             <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSaveEvaluation}
+              disabled={isLoading || isSaving || !promptId || !datasetId}
+            >
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+            <Button
               type="submit"
-              disabled={isLoading || !datasetId}
+              disabled={isLoading || isSaving || !promptId || !datasetId}
             >
               {isLoading ? 'Starting Evaluation...' : 'Run Evaluation'}
             </Button>
