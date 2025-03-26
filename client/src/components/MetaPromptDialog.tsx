@@ -200,8 +200,7 @@ export default function MetaPromptDialog({
           </DialogTitle>
         </DialogHeader>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
-          {/* Left Panel */}
+        <div className="grid grid-cols-1 gap-6 py-4">
           <div className="space-y-4">
             <div>
               <label htmlFor="prompt-name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -224,9 +223,23 @@ export default function MetaPromptDialog({
                 onChange={(e) => setMetaPrompt(e.target.value)}
               />
             </div>
+            
+            <div className="flex justify-between items-center mt-4">
+              <Button
+                variant="outline"
+                onClick={onClose}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={savePromptMutation.isPending || !name.trim() || !llmResponse}
+              >
+                {savePromptMutation.isPending ? "Saving..." : "Save Meta Prompt"}
+              </Button>
+            </div>
           </div>
           
-          {/* Right Panel */}
           <div className="space-y-4">
             <div>
               <label htmlFor="user-prompt" className="block text-sm font-medium text-gray-700 mb-1">User Prompt</label>
@@ -245,24 +258,15 @@ export default function MetaPromptDialog({
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">LLM Response</label>
-              <div className="p-4 bg-gray-50 rounded-md code-editor overflow-auto max-h-40 custom-scrollbar">
+              <div className="p-4 bg-gray-50 rounded-md code-editor overflow-auto max-h-60 custom-scrollbar">
                 <pre className="text-sm whitespace-pre-wrap">{llmResponse || "LLM response will appear here after generating..."}</pre>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Processed Meta Prompt</label>
-              <div className="p-3 bg-gray-50 rounded-md code-editor overflow-auto max-h-20 custom-scrollbar">
-                <pre className="text-xs text-gray-500 whitespace-pre-wrap">{processedMetaPrompt || "The processed meta prompt will be shown here..."}</pre>
               </div>
             </div>
             
             <div className="flex justify-end">
               <Button 
-                variant="outline"
                 disabled={generateLLMResponseMutation.isPending || !metaPrompt.trim() || !userPrompt.trim()}
                 onClick={handleGenerateFinalPrompt}
-                className="mr-2"
               >
                 <span className="material-icons text-sm mr-1">auto_awesome</span>
                 {generateLLMResponseMutation.isPending ? "Generating..." : "Generate"}
@@ -270,21 +274,6 @@ export default function MetaPromptDialog({
             </div>
           </div>
         </div>
-        
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={savePromptMutation.isPending || !name.trim() || !llmResponse}
-          >
-            {savePromptMutation.isPending ? "Saving..." : "Save Meta Prompt"}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
