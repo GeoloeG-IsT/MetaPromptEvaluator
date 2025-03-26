@@ -191,9 +191,6 @@ export default function EvaluationDialog({
     });
   };
   
-  // Show meta prompt with highlighted placeholders
-  const highlightedPrompt = selectedPrompt?.metaPrompt?.replace(/\{\{user_prompt\}\}/g, '<span class="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">{{user_prompt}}</span>') || '';
-  
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px]">
@@ -230,17 +227,6 @@ export default function EvaluationDialog({
               </p>
             )}
           </div>
-          
-          {/* Meta prompt preview */}
-          {selectedPrompt && (
-            <div className="space-y-2">
-              <Label>Meta Prompt Template</Label>
-              <div 
-                className="border rounded-md p-3 bg-gray-50 dark:bg-gray-900 h-32 overflow-y-auto text-sm"
-                dangerouslySetInnerHTML={{ __html: highlightedPrompt }}
-              />
-            </div>
-          )}
           
           {/* User prompt input */}
           <div className="space-y-2">

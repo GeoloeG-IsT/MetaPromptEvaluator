@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import EvaluationDialog from "@/components/EvaluationDialog";
+import EvaluationDetail from "@/components/EvaluationDetail";
 
 export default function Evaluations() {
   const [isEvaluationDialogOpen, setIsEvaluationDialogOpen] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+  const [selectedEvaluationId, setSelectedEvaluationId] = useState<number | null>(null);
   
   const { data: evaluations, isLoading } = useQuery<Evaluation[]>({
     queryKey: ["/api/evaluations"],
@@ -26,6 +28,14 @@ export default function Evaluations() {
   const completed = evaluations?.filter(e => e.status === 'completed') || [];
   const inProgress = evaluations?.filter(e => e.status === 'in_progress' || e.status === 'pending') || [];
   const failed = evaluations?.filter(e => e.status === 'failed') || [];
+  
+  const viewEvaluation = (evaluationId: number) => {
+    setSelectedEvaluationId(evaluationId);
+  };
+  
+  const closeEvaluationDetail = () => {
+    setSelectedEvaluationId(null);
+  };
 
   function getStatusBadge(status: string) {
     switch (status) {
@@ -40,6 +50,16 @@ export default function Evaluations() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  }
+
+  // If we're viewing a specific evaluation, show the detail view
+  if (selectedEvaluationId) {
+    return (
+      <EvaluationDetail 
+        evaluationId={selectedEvaluationId} 
+        onBack={closeEvaluationDetail} 
+      />
+    );
   }
 
   return (
@@ -126,13 +146,9 @@ export default function Evaluations() {
                           )}
                         </div>
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" onClick={() => viewEvaluation(evaluation.id)}>
                             <span className="material-icons text-sm mr-1">visibility</span>
-                            View
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <span className="material-icons text-sm mr-1">file_download</span>
-                            Export
+                            View Details
                           </Button>
                         </div>
                       </div>
@@ -162,7 +178,6 @@ export default function Evaluations() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
-                    {/* Similar content as above */}
                     <div className="flex flex-col md:flex-row justify-between mb-2">
                       <div className="text-sm text-gray-500">
                         Prompt ID: {evaluation.promptId}
@@ -187,13 +202,9 @@ export default function Evaluations() {
                         )}
                       </div>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => viewEvaluation(evaluation.id)}>
                           <span className="material-icons text-sm mr-1">visibility</span>
-                          View
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <span className="material-icons text-sm mr-1">file_download</span>
-                          Export
+                          View Details
                         </Button>
                       </div>
                     </div>
@@ -205,7 +216,6 @@ export default function Evaluations() {
         </TabsContent>
         
         <TabsContent value="in-progress" className="mt-4">
-          {/* Similar structure with inProgress evaluations */}
           {inProgress.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
@@ -223,7 +233,6 @@ export default function Evaluations() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
-                    {/* Similar content */}
                     <div className="flex flex-col md:flex-row justify-between mb-2">
                       <div className="text-sm text-gray-500">
                         Prompt ID: {evaluation.promptId}
@@ -237,6 +246,12 @@ export default function Evaluations() {
                           : "Unknown date"}
                       </div>
                     </div>
+                    <div className="flex justify-end mt-4">
+                      <Button variant="outline" size="sm" onClick={() => viewEvaluation(evaluation.id)}>
+                        <span className="material-icons text-sm mr-1">visibility</span>
+                        View Details
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -245,7 +260,6 @@ export default function Evaluations() {
         </TabsContent>
         
         <TabsContent value="failed" className="mt-4">
-          {/* Similar structure with failed evaluations */}
           {failed.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
@@ -263,7 +277,6 @@ export default function Evaluations() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
-                    {/* Similar content */}
                     <div className="flex flex-col md:flex-row justify-between mb-2">
                       <div className="text-sm text-gray-500">
                         Prompt ID: {evaluation.promptId}
@@ -279,7 +292,14 @@ export default function Evaluations() {
                     </div>
                     
                     <div className="mt-2 text-red-500 text-sm">
-                      {evaluation.metrics?.error || "Unknown error"}
+                      {((evaluation.metrics as any)?.error) || "Unknown error"}
+                    </div>
+                    
+                    <div className="flex justify-end mt-4">
+                      <Button variant="outline" size="sm" onClick={() => viewEvaluation(evaluation.id)}>
+                        <span className="material-icons text-sm mr-1">visibility</span>
+                        View Details
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

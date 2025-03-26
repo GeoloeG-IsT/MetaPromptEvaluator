@@ -31,7 +31,8 @@ export interface EvaluationMetrics {
   completeness: number;
   specificity: number;
   adaptability: number;
-  [key: string]: number;
+  error?: string;
+  [key: string]: number | string | undefined;
 }
 
 // Extended evaluation with calculated metrics
