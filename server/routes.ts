@@ -50,9 +50,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/prompts", async (req: Request, res: Response) => {
     try {
       const userId = req.query.userId ? Number(req.query.userId) : undefined;
-      const prompts = await storage.getPrompts(userId);
-      res.json(prompts);
+      console.log('Fetching prompts with userId:', userId);
+      try {
+        const prompts = await storage.getPrompts(userId);
+        res.json(prompts);
+      } catch (storageError) {
+        console.error('Storage error when fetching prompts:', storageError);
+        throw storageError;
+      }
     } catch (error) {
+      console.error('Error fetching prompts:', error);
       res.status(500).json({ message: "Failed to fetch prompts" });
     }
   });
@@ -279,10 +286,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           const results = await evaluatePrompt(
-            prompt.metaPrompt, 
+            prompt.metaPrompt || "", 
             datasetItems, 
             evaluation.validationMethod,
-            evaluation.priority
+            evaluation.priority || "Balanced"
           );
           
           // Store results and update evaluation
