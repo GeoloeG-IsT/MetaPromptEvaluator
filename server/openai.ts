@@ -33,17 +33,43 @@ export async function generateLLMResponse(
 }
 
 export async function generateMetaPrompt(
-  metaPrompt: string,
-  userPrompt: string
+  initialPrompt: string,
+  complexity: string = "Standard",
+  tone: string = "Balanced"
 ): Promise<string> {
   try {
-    // Simply replace {{user_prompt}} in the meta prompt with the actual user prompt
-    const processedMetaPrompt = metaPrompt.replace(/{{user_prompt}}/g, userPrompt);
-    
-    return processedMetaPrompt;
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: 
+            `You are an expert in creating detailed meta prompts for LLMs. 
+            A meta prompt is a higher-level prompt that will be used to generate more specific prompts based on user inputs.
+            
+            The meta prompt should:
+            1. Be well-structured with clear sections and instructions
+            2. Include comprehensive guidance on how to analyze and respond to the initial prompt
+            3. Provide frameworks for generating consistent, high-quality responses
+            
+            Complexity level: ${complexity}
+            Tone: ${tone}
+            
+            Generate a detailed meta prompt based on the initial prompt provided by the user.`
+        },
+        {
+          role: "user",
+          content: initialPrompt
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
+    });
+
+    return response.choices[0].message.content || "Failed to generate meta prompt";
   } catch (error) {
-    console.error("Error processing meta prompt:", error);
-    throw new Error("Failed to process meta prompt");
+    console.error("Error calling OpenAI:", error);
+    throw new Error("Failed to generate meta prompt");
   }
 }
 
@@ -72,9 +98,9 @@ export async function evaluatePrompt(
     temperature = 0;
   }
   
-  // Generate meta prompt with user prompt
+  // Inject user prompt into meta prompt
   const processedMetaPrompt = userPrompt 
-    ? await generateMetaPrompt(metaPrompt, userPrompt)
+    ? metaPrompt.replace(/{{user_prompt}}/g, userPrompt)
     : metaPrompt;
     
   console.log("=== EVALUATION INFO ===");
@@ -99,7 +125,7 @@ export async function evaluatePrompt(
       let generatedResponse: string;
       if (item.inputType === "image" && item.inputImage) {
         console.log("Generating response for IMAGE input");
-        generatedResponse = await generateImageResponse(processedMetaPrompt, item.inputImage);
+        generatedResponse = await generateImageResponse(processedMetaPrompt, item.inputImage, userPrompt);
       } else if (item.inputType === "text" && item.inputText) {
         console.log("Generating response for TEXT input");
         generatedResponse = await generateTextResponse(processedMetaPrompt, item.inputText, userPrompt);
@@ -145,7 +171,7 @@ export async function evaluatePrompt(
  * Generate a response for an image input using the OpenAI vision API.
  * This uses the processed meta prompt as the system message and the image as the user message.
  */
-export async function generateImageResponse(metaPrompt: string, imageUrl: string): Promise<string> {
+export async function generateImageResponse(metaPrompt: string, imageUrl: string, userPrompt?: string): Promise<string> {
   try {
     console.log("IMAGE RESPONSE GENERATION");
     console.log("Meta Prompt:", metaPrompt.substring(0, 100) + "...");
@@ -164,7 +190,7 @@ export async function generateImageResponse(metaPrompt: string, imageUrl: string
           content: [
             {
               type: "text",
-              text: "Please analyze this image."
+              text: userPrompt || "Please analyze this image."
             },
             {
               type: "image_url",

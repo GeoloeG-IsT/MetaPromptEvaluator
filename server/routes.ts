@@ -222,16 +222,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // OpenAI interaction
   app.post("/api/generate-meta-prompt", async (req: Request, res: Response) => {
     try {
-      const { initialPrompt, userPrompt } = req.body;
+      const { initialPrompt } = req.body;
       
-      if (!initialPrompt || !userPrompt) {
-        return res.status(400).json({ message: "Initial prompt and user prompt are required" });
+      if (!initialPrompt) {
+        return res.status(400).json({ message: "Initial prompt is required" });
       }
       
-      // Generate a template-based prompt
-      const template = `You are a helpful assistant. The user has the following request: {{user_prompt}}`;
-      const processedMetaPrompt = await generateMetaPrompt(template, initialPrompt);
-      res.json({ metaPrompt: processedMetaPrompt });
+      // Use default values for complexity and tone
+      const metaPrompt = await generateMetaPrompt(initialPrompt);
+      res.json({ metaPrompt });
     } catch (error) {
       console.error("Error generating meta prompt:", error);
       res.status(500).json({ message: "Failed to generate meta prompt" });
