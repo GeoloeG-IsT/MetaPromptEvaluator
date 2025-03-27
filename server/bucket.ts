@@ -37,17 +37,37 @@ class LocalBucketStorage {
    */
   async uploadPdf(fileData: string, fileId: string): Promise<string> {
     try {
+      console.log(`Uploading PDF with ID: ${fileId} to bucket: ${this.bucketPath}`);
+      
+      if (!fileData) {
+        console.error('Empty PDF data received for upload');
+        throw new Error('PDF data is empty');
+      }
+      
       const writeFile = promisify(fs.writeFile);
+      
+      // Log the beginning of the fileData to diagnose issues (truncate to avoid flooding logs)
+      console.log(`PDF data starts with: ${fileData.substring(0, 50)}...`);
       
       // Remove data URI scheme if present
       const base64Data = fileData.replace(/^data:application\/pdf;base64,/, '');
       
       // Convert base64 to buffer
       const buffer = Buffer.from(base64Data, 'base64');
+      console.log(`Created buffer of size: ${buffer.length} bytes`);
       
       // Write to file
       const filePath = path.join(this.bucketPath, `${fileId}.pdf`);
+      console.log(`Writing PDF to: ${filePath}`);
       await writeFile(filePath, buffer);
+      
+      // Verify the file was created
+      if (fs.existsSync(filePath)) {
+        const stats = fs.statSync(filePath);
+        console.log(`PDF file created successfully. Size: ${stats.size} bytes`);
+      } else {
+        console.error('Failed to verify PDF file creation');
+      }
       
       return fileId;
     } catch (error: any) {
@@ -63,19 +83,31 @@ class LocalBucketStorage {
    */
   async getPdf(fileId: string): Promise<string> {
     try {
+      console.log(`Retrieving PDF with ID: ${fileId} from bucket: ${this.bucketPath}`);
       const readFile = promisify(fs.readFile);
       const filePath = path.join(this.bucketPath, `${fileId}.pdf`);
       
       // Check if the file exists
       if (!fs.existsSync(filePath)) {
+        console.error(`PDF file not found at path: ${filePath}`);
+        // List directory contents for debugging
+        try {
+          const files = fs.readdirSync(this.bucketPath);
+          console.log(`Files in ${this.bucketPath}:`, files);
+        } catch (err) {
+          console.error(`Failed to list directory contents: ${err}`);
+        }
         throw new Error(`PDF file not found: ${fileId}`);
       }
       
+      console.log(`Found PDF file at: ${filePath}`);
       // Read the file
       const data = await readFile(filePath);
+      console.log(`Read PDF file size: ${data.length} bytes`);
       
       // Convert to base64
       const base64Data = data.toString('base64');
+      console.log(`Converted PDF to base64, length: ${base64Data.length} characters`);
       
       // Return with proper data URI format
       return `data:application/pdf;base64,${base64Data}`;

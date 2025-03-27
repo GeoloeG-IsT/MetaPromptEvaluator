@@ -47,6 +47,7 @@ export async function uploadPdf(pdfData: string, fileId: string = generatePdfId(
  */
 export async function getPdf(fileId: string): Promise<string> {
   try {
+    console.log(`Getting PDF with ID: ${fileId} from server`);
     const response = await fetch(`/api/pdf/${fileId}`);
     
     if (!response.ok) {
@@ -54,7 +55,18 @@ export async function getPdf(fileId: string): Promise<string> {
     }
     
     const result = await response.json();
-    return `data:application/pdf;base64,${result.pdfData}`;
+    console.log('Received PDF data response:', result);
+    
+    // Check if we already have a data URI or just base64 data
+    if (result.pdfData && result.pdfData.startsWith('data:application/pdf;base64,')) {
+      // Already in correct format, return as is
+      return result.pdfData;
+    } else if (result.pdfData) {
+      // Need to add the data URI prefix
+      return `data:application/pdf;base64,${result.pdfData}`;
+    } else {
+      throw new Error('PDF data not found in server response');
+    }
   } catch (error) {
     console.error('Error getting PDF:', error);
     throw error;

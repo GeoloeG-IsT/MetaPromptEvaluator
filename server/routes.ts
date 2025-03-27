@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(400).json({ message: "Invalid dataset item data", errors: error.format() });
       } else {
         console.error("POST /api/dataset-items - Server error:", error);
-        res.status(500).json({ message: "Failed to create dataset item", error: error.toString() });
+        res.status(500).json({ message: "Failed to create dataset item", error: String(error) });
       }
     }
   });
@@ -210,7 +210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(datasetItems);
     } catch (error: any) {
       console.error(`GET /api/datasets/:id/items - Error:`, error);
-      res.status(500).json({ message: "Failed to fetch dataset items", error: error.toString() });
+      res.status(500).json({ message: "Failed to fetch dataset items", error: String(error) });
     }
   });
   
