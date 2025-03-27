@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { generatePdfId, uploadPdf, getPdf, getPdfMarkdown, deletePdf } from "@/lib/pdfUtils";
 import { formatDistanceToNow } from "date-fns";
+import DatasetItemDialog from '@/components/DatasetItemDialog';
 
 
 type Dataset = {
@@ -499,7 +500,7 @@ export default function Datasets() {
           // Call the update mutation
           updateDatasetItemMutation.mutate(itemToUpdate);
         })
-        .catch((error: any) => {
+        .catch((error) => {
           console.error("PDF upload error:", error);
           toast({
             title: "PDF upload failed",
@@ -508,7 +509,7 @@ export default function Datasets() {
           });
         });
     } else {
-      // For image, text, or unchanged PDF inputs, update directly
+      // For image, text, or an existing PDF, update directly
       const itemToUpdate = {
         id: selectedDatasetItem.id,
         ...newDatasetItem,
@@ -552,311 +553,181 @@ export default function Datasets() {
       {selectedDataset ? (
         // Dataset detail view
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex justify-between items-center mb-4">
             <div className="flex items-center">
-              <Button variant="outline" onClick={closeDatasetView} className="mr-2">
+              <Button variant="ghost" size="sm" onClick={closeDatasetView} className="mr-2">
                 <span className="material-icons text-sm mr-1">arrow_back</span>
                 Back
               </Button>
-              <h3 className="text-xl font-medium">{selectedDataset.name}</h3>
+              <h2 className="text-xl font-semibold">{selectedDataset.name}</h2>
             </div>
-            <Button 
-              variant="destructive"
-              onClick={handleDeleteDataset}
-              disabled={deleteDatasetMutation.isPending}
-            >
-              <span className="material-icons text-sm mr-1">
-                {deleteDatasetMutation.isPending ? 'hourglass_empty' : 'delete'}
-              </span>
-              Delete Dataset
-            </Button>
+            <div className="space-x-2">
+              <Button variant="outline" size="sm" onClick={addNewItem}>
+                <span className="material-icons text-sm mr-1">add</span>
+                Add Item
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleDeleteDataset}>
+                <span className="material-icons text-sm mr-1">delete</span>
+                Delete Dataset
+              </Button>
+            </div>
           </div>
           
-          <Card className="mb-4">
-            <CardContent className="pt-6">
-              <p className="text-gray-500">{selectedDataset.description}</p>
-              <div className="mt-4 flex flex-wrap gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Items:</span> {selectedDataset.itemCount}
-                </div>
-                <div>
-                  <span className="font-medium">Created:</span> {
-                    selectedDataset.createdAt 
-                      ? formatDistanceToNow(new Date(selectedDataset.createdAt), { addSuffix: true })
-                      : "Unknown"
-                  }
-                </div>
+          {selectedDataset.description && (
+            <p className="mb-4 text-gray-500">{selectedDataset.description}</p>
+          )}
+          
+          <div className="rounded-md border">
+            {itemsLoading ? (
+              <div className="p-8 flex justify-center">
+                <span className="material-icons animate-spin">refresh</span>
+                <span className="ml-2">Loading dataset items...</span>
               </div>
-            </CardContent>
-          </Card>
-          
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="text-lg font-medium">Dataset Items</h4>
-            <Button onClick={addNewItem}>
-              <span className="material-icons text-sm mr-1">add</span>
-              Add Item
-            </Button>
-          </div>
-          
-          {itemsLoading ? (
-            <div className="text-center p-8">
-              <span className="material-icons animate-spin">refresh</span>
-            </div>
-          ) : !datasetItems || datasetItems.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <p className="text-gray-500">No items in this dataset. Add some items to get started.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            ) : datasetItems && datasetItems.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Type</TableHead>
+                    <TableHead className="w-[100px]">Type</TableHead>
                     <TableHead>Input</TableHead>
                     <TableHead>Valid Response</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {datasetItems.map((item: DatasetItem) => (
                     <TableRow key={item.id}>
                       <TableCell>
-                        <Badge 
-                          variant={
-                            item.inputType === 'text' 
-                              ? 'outline' 
-                              : item.inputType === 'image'
-                                ? 'secondary'
-                                : 'default'
-                          }
-                        >
-                          {item.inputType === 'text' 
-                            ? 'Text' 
-                            : item.inputType === 'image'
-                              ? 'Image'
-                              : 'PDF'
-                          }
+                        <Badge variant="outline">
+                          {item.inputType === "text" && "Text"}
+                          {item.inputType === "image" && "Image"}
+                          {item.inputType === "pdf" && "PDF"}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {item.inputType === 'text' ? (
-                          <div className="max-w-md p-2 bg-gray-50 rounded text-sm overflow-hidden">
-                            <div className="line-clamp-2">{item.inputText}</div>
-                          </div>
-                        ) : item.inputType === 'image' ? (
-                          <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                      <TableCell className="max-w-[200px]">
+                        {item.inputType === "text" && (
+                          <div className="line-clamp-2 text-sm">{item.inputText}</div>
+                        )}
+                        {item.inputType === "image" && item.inputImage && (
+                          <div className="h-12 w-12 relative">
                             <img 
-                              src={item.inputImage || ''} 
-                              alt="Input" 
-                              className="max-h-full max-w-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = '';
-                                const parent = e.currentTarget.parentElement;
-                                if (parent) {
-                                  parent.innerHTML = '<span class="material-icons text-gray-400">broken_image</span>';
-                                }
-                              }}
+                              src={item.inputImage} 
+                              alt="Input image" 
+                              className="absolute inset-0 h-full w-full object-cover rounded-sm" 
                             />
                           </div>
-                        ) : item.inputType === 'pdf' && item.inputPdf ? (
-                          <div className="space-y-2">
-                            <div 
-                              className="p-2 bg-gray-50 rounded text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-100"
-                              onClick={() => {
-                                // When clicked, try to get the PDF content and open in a new tab
-                                toast({
-                                  title: "Loading PDF",
-                                  description: "Retrieving PDF document..."
-                                });
-                                
-                                if (item.inputPdf) {
-                                  getPdf(item.inputPdf).then(pdfData => {
-                                    // Create a new window/tab with the PDF content
-                                    const pdfWindow = window.open();
-                                    if (pdfWindow) {
-                                      pdfWindow.document.write(`
-                                        <iframe 
-                                          width="100%" 
-                                          height="100%" 
-                                          src="${pdfData}" 
-                                          style="border: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
-                                        ></iframe>
-                                      `);
-                                    } else {
-                                      toast({
-                                        title: "Popup blocked",
-                                        description: "Please allow popups to view PDF documents",
-                                        variant: "destructive"
+                        )}
+                        {item.inputType === "pdf" && item.inputPdf && (
+                          <div className="flex items-center">
+                            <span className="material-icons text-red-600 mr-2 text-lg">picture_as_pdf</span>
+                            <div className="text-sm">
+                              <div className="font-medium">{item.inputPdf}</div>
+                              <div className="flex mt-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-6 px-2 text-xs"
+                                  onClick={() => {
+                                    // Open PDF in new tab
+                                    getPdf(item.inputPdf!)
+                                      .then(pdfData => {
+                                        // Open the PDF in a new tab
+                                        const pdfWindow = window.open();
+                                        if (pdfWindow) {
+                                          pdfWindow.document.write(`
+                                            <iframe width="100%" height="100%" src="${pdfData}"></iframe>
+                                          `);
+                                        }
+                                      })
+                                      .catch(error => {
+                                        console.error("Error fetching PDF:", error);
+                                        toast({
+                                          title: "Error",
+                                          description: "Failed to retrieve PDF. Please try again.",
+                                          variant: "destructive"
+                                        });
                                       });
-                                    }
-                                  }).catch(error => {
-                                    console.error("Error loading PDF:", error);
-                                    toast({
-                                      title: "PDF Error",
-                                      description: "Failed to load PDF document",
-                                      variant: "destructive"
-                                    });
-                                  });
-                                }
-                              }}
-                            >
-                              <span className="material-icons text-red-500">picture_as_pdf</span>
-                              <span className="font-medium truncate">{item.inputPdf}</span>
-                              <span className="text-xs text-blue-500">(Click to view PDF)</span>
+                                  }}
+                                >
+                                  View PDF
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-6 px-2 text-xs"
+                                  onClick={() => {
+                                    // Get markdown content
+                                    getPdfMarkdown(item.inputPdf!)
+                                      .then(markdown => {
+                                        // Open the markdown in a popup
+                                        const mdWindow = window.open("", "_blank", "width=800,height=600");
+                                        if (mdWindow) {
+                                          mdWindow.document.write(`
+                                            <html>
+                                              <head>
+                                                <title>PDF Text</title>
+                                                <style>
+                                                  body {
+                                                    font-family: system-ui, -apple-system, sans-serif;
+                                                    padding: 20px;
+                                                    line-height: 1.5;
+                                                    background: white;
+                                                    color: black;
+                                                  }
+                                                  pre {
+                                                    white-space: pre-wrap;
+                                                    word-wrap: break-word;
+                                                    background: #f5f5f5;
+                                                    padding: 15px;
+                                                    border-radius: 4px;
+                                                    overflow: auto;
+                                                  }
+                                                </style>
+                                              </head>
+                                              <body>
+                                                <h2>Extracted Text from PDF</h2>
+                                                <pre>${markdown}</pre>
+                                              </body>
+                                            </html>
+                                          `);
+                                        }
+                                      })
+                                      .catch(error => {
+                                        console.error("Error fetching markdown:", error);
+                                        toast({
+                                          title: "Error",
+                                          description: "Failed to retrieve PDF text. Please try again.",
+                                          variant: "destructive"
+                                        });
+                                      });
+                                  }}
+                                >
+                                  View Markdown
+                                </Button>
+                              </div>
                             </div>
-                            
-                            {/* Button to toggle markdown visibility */}
-                            <div className="flex justify-end">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  
-                                  // Show loading toast
-                                  toast({
-                                    title: "Loading markdown",
-                                    description: "Retrieving PDF content..."
-                                  });
-                                  
-                                  try {
-                                    // Directly get markdown content and open in popup
-                                    const markdownContent = await getPdfMarkdown(item.inputPdf || '');
-                                    
-                                    if (!markdownContent) {
-                                      toast({
-                                        title: "Error",
-                                        description: "No markdown content available for this PDF",
-                                        variant: "destructive"
-                                      });
-                                      return;
-                                    }
-                                    
-                                    // Create a new window for the popup
-                                    const popupWindow = window.open('', '_blank', 'width=800,height=600');
-                                    
-                                    if (!popupWindow) {
-                                      toast({
-                                        title: 'Popup Blocked',
-                                        description: 'Please allow popups to view the markdown content',
-                                        variant: 'destructive',
-                                      });
-                                      return;
-                                    }
-                                    
-                                    // Write HTML content to the popup window
-                                    popupWindow.document.write(`
-                                      <!DOCTYPE html>
-                                      <html>
-                                      <head>
-                                        <title>Markdown Content: ${item.inputPdf}</title>
-                                        <style>
-                                          body {
-                                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-                                            padding: 20px;
-                                            margin: 0;
-                                            background-color: white;
-                                            color: black;
-                                            line-height: 1.5;
-                                          }
-                                          .container {
-                                            max-width: 800px;
-                                            margin: 0 auto;
-                                          }
-                                          header {
-                                            display: flex;
-                                            justify-content: space-between;
-                                            align-items: center;
-                                            margin-bottom: 20px;
-                                            padding-bottom: 10px;
-                                            border-bottom: 1px solid #eaeaea;
-                                          }
-                                          h1 {
-                                            font-size: 20px;
-                                            margin: 0;
-                                          }
-                                          .content {
-                                            background-color: white;
-                                            padding: 15px;
-                                            border-radius: 6px;
-                                            white-space: pre-wrap;
-                                            overflow-wrap: break-word;
-                                            overflow-y: auto;
-                                          }
-                                          .btn {
-                                            padding: 8px 16px;
-                                            background-color: #f1f5f9;
-                                            border: 1px solid #e2e8f0;
-                                            border-radius: 4px;
-                                            cursor: pointer;
-                                            font-size: 14px;
-                                          }
-                                          .btn:hover {
-                                            background-color: #e2e8f0;
-                                          }
-                                        </style>
-                                      </head>
-                                      <body>
-                                        <div class="container">
-                                          <header>
-                                            <h1>Markdown Content: ${item.inputPdf} <span style="font-size: 12px; color: #888;">(Extracted from PDF)</span></h1>
-                                            <button class="btn" onclick="window.print()">
-                                              Print
-                                            </button>
-                                          </header>
-                                          <div class="content">${markdownContent}</div>
-                                        </div>
-                                      </body>
-                                      </html>
-                                    `);
-                                    
-                                    // Close the document to finish loading
-                                    popupWindow.document.close();
-                                  } catch (error) {
-                                    console.error("Error fetching markdown:", error);
-                                    toast({
-                                      title: "Error",
-                                      description: "Failed to load markdown content",
-                                      variant: "destructive"
-                                    });
-                                  }
-                                }}
-                              >
-                                <span className="material-icons text-xs mr-1">open_in_new</span>
-                                View Markdown
-                              </Button>
-                            </div>
-
-                          </div>
-                        ) : (
-                          <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
-                            <span className="material-icons text-gray-400">help_outline</span>
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-md">
-                        <div className="truncate">{item.validResponse}</div>
+                      <TableCell className="max-w-[300px]">
+                        <div className="line-clamp-2 text-sm font-mono">{item.validResponse}</div>
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-1">
                           <Button 
                             variant="ghost" 
-                            size="sm"
+                            size="icon" 
+                            className="h-8 w-8"
                             onClick={() => editDatasetItem(item)}
                           >
                             <span className="material-icons text-sm">edit</span>
                           </Button>
                           <Button 
                             variant="ghost" 
-                            size="sm" 
+                            size="icon" 
+                            className="h-8 w-8 text-red-500"
                             onClick={() => handleDeleteItem(item.id)}
-                            disabled={deleteDatasetItemMutation.isPending}
                           >
-                            <span className="material-icons text-sm">
-                              {deleteDatasetItemMutation.isPending ? 'hourglass_empty' : 'delete'}
-                            </span>
+                            <span className="material-icons text-sm">delete</span>
                           </Button>
                         </div>
                       </TableCell>
@@ -864,36 +735,37 @@ export default function Datasets() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
-          )}
+            ) : (
+              <div className="p-8 text-center">
+                <p className="text-gray-500">No items in this dataset yet.</p>
+                <Button onClick={addNewItem} variant="outline" size="sm" className="mt-2">
+                  <span className="material-icons text-sm mr-1">add</span>
+                  Add Item
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         // Dataset list view
         <>
           {isLoading ? (
-            <div className="text-center p-8">
-              <span className="material-icons animate-spin">refresh</span>
+            <div className="flex justify-center p-8">
+              <span className="material-icons animate-spin mr-2">refresh</span>
+              <span>Loading datasets...</span>
             </div>
-          ) : !datasets || datasets.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center">
-                <p className="text-gray-500">No datasets found. Create a new dataset to get started.</p>
-              </CardContent>
-            </Card>
-          ) : (
+          ) : datasets && datasets.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {datasets.map((dataset: Dataset) => (
-                <Card key={dataset.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                <Card key={dataset.id} className="overflow-hidden">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-lg">{dataset.name}</CardTitle>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
+                          size="icon"
+                          onClick={() => {
                             if (confirm(`Are you sure you want to delete "${dataset.name}" dataset? This will permanently delete the dataset and all its items. This action cannot be undone.`)) {
                               deleteDatasetMutation.mutate(dataset.id);
                             }
@@ -921,42 +793,46 @@ export default function Datasets() {
                 </Card>
               ))}
             </div>
+          ) : (
+            <div className="text-center p-8 border rounded-lg">
+              <p className="text-gray-500 mb-4">No datasets yet. Create one to get started.</p>
+              <Button onClick={() => setIsCreateDialogOpen(true)}>
+                <span className="material-icons text-sm mr-1">add</span>
+                New Dataset
+              </Button>
+            </div>
           )}
         </>
       )}
       
       {/* Create Dataset Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
-            <DialogTitle>Create New Dataset</DialogTitle>
+            <DialogTitle>Create Dataset</DialogTitle>
             <DialogDescription>
-              Add a new dataset for evaluating your meta prompts.
+              Create a new dataset for evaluation.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium">
-                Dataset Name
-              </label>
+              <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
                 value={newDataset.name}
                 onChange={(e) => setNewDataset({ ...newDataset, name: e.target.value })}
-                placeholder="e.g., Landscape Image Classification"
+                placeholder="Dataset name"
+                required
               />
             </div>
-            
             <div className="space-y-2">
-              <label htmlFor="description" className="text-sm font-medium">
-                Description
-              </label>
+              <Label htmlFor="description">Description (optional)</Label>
               <Textarea
                 id="description"
                 value={newDataset.description}
                 onChange={(e) => setNewDataset({ ...newDataset, description: e.target.value })}
-                placeholder="Describe the purpose of this dataset..."
+                placeholder="Brief description of the dataset"
                 rows={3}
               />
             </div>
@@ -979,308 +855,11 @@ export default function Datasets() {
       </Dialog>
       
       {/* Add Dataset Item Dialog */}
-      <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <DialogTitle>Add Dataset Item</DialogTitle>
-            <DialogDescription>
-              Add a new item to "{selectedDataset?.name}".
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Input Type
-              </label>
-              <RadioGroup 
-                value={newDatasetItem.inputType} 
-                onValueChange={(value) => setNewDatasetItem({ ...newDatasetItem, inputType: value })}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="text" id="input-text" />
-                  <Label htmlFor="input-text">Text</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="image" id="input-image" />
-                  <Label htmlFor="input-image">Image</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="pdf" id="input-pdf" />
-                  <Label htmlFor="input-pdf">PDF</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
-            {/* Conditional input based on type */}
-            {newDatasetItem.inputType === "text" && (
-              <div className="space-y-2">
-                <label htmlFor="inputText" className="text-sm font-medium">
-                  Input Text
-                </label>
-                <Textarea
-                  id="inputText"
-                  value={newDatasetItem.inputText}
-                  onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputText: e.target.value })}
-                  placeholder="Enter text input..."
-                  rows={4}
-                />
-              </div>
-            )}
-            
-            {newDatasetItem.inputType === "image" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="imageUrl" className="text-sm font-medium">
-                    Image URL
-                  </label>
-                  <Input
-                    id="imageUrl"
-                    value={newDatasetItem.inputImage}
-                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputImage: e.target.value })}
-                    placeholder="https://example.com/image.jpg"
-                    disabled={!!uploadedImage}
-                  />
-                </div>
-                
-                <div 
-                  className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => document.getElementById('imageUpload')?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.add('border-blue-500');
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove('border-blue-500');
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove('border-blue-500');
-                    
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0 && files[0].type.startsWith('image/')) {
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        if (event.target?.result) {
-                          setUploadedImage(event.target.result as string);
-                          toast({
-                            title: "Image uploaded",
-                            description: "Image has been uploaded."
-                          });
-                        }
-                      };
-                      reader.readAsDataURL(files[0]);
-                    } else {
-                      toast({
-                        title: "Invalid file",
-                        description: "Please upload an image file.",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                >
-                  <input
-                    type="file"
-                    id="imageUpload"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (files && files.length > 0) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          if (event.target?.result) {
-                            setUploadedImage(event.target.result as string);
-                            toast({
-                              title: "Image uploaded",
-                              description: "Image has been uploaded."
-                            });
-                          }
-                        };
-                        reader.readAsDataURL(files[0]);
-                      }
-                    }}
-                  />
-                  
-                  {uploadedImage ? (
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <img 
-                        src={uploadedImage} 
-                        alt="Uploaded" 
-                        className="max-h-32 object-contain"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUploadedImage(null);
-                          setNewDatasetItem({ ...newDatasetItem, inputImage: "" });
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <span className="material-icons text-4xl text-gray-400">image</span>
-                      <p>Drag & drop an image here or click to browse</p>
-                      <p className="text-xs text-gray-500">Supports JPEG, PNG, GIF, etc.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {newDatasetItem.inputType === "pdf" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="pdfId" className="text-sm font-medium">
-                    PDF ID
-                  </label>
-                  <Input
-                    id="pdfId"
-                    value={newDatasetItem.inputPdf}
-                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputPdf: e.target.value })}
-                    placeholder="e.g., document-id-123"
-                    disabled={!!uploadedPdf}
-                  />
-                </div>
-                
-                <div 
-                  className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => document.getElementById('pdfUpload')?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.add('border-blue-500');
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove('border-blue-500');
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove('border-blue-500');
-                    
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0 && files[0].type === 'application/pdf') {
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        if (event.target?.result) {
-                          setUploadedPdf(event.target.result as string);
-                          toast({
-                            title: "PDF uploaded",
-                            description: "PDF file has been uploaded."
-                          });
-                          
-                          // Save the file ID (name without extension) to the form state
-                          const fileName = files[0].name;
-                          const fileId = fileName.replace('.pdf', '');
-                          setNewDatasetItem({ ...newDatasetItem, inputPdf: fileId });
-                        }
-                      };
-                      reader.readAsDataURL(files[0]);
-                    } else {
-                      toast({
-                        title: "Invalid file",
-                        description: "Please upload a PDF file.",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                >
-                  <input
-                    type="file"
-                    id="pdfUpload"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (files && files.length > 0) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          if (event.target?.result) {
-                            setUploadedPdf(event.target.result as string);
-                            toast({
-                              title: "PDF uploaded",
-                              description: "PDF file has been uploaded."
-                            });
-                          }
-                        };
-                        reader.readAsDataURL(files[0]);
-                        
-                        // Save the file ID (name without extension) to the form state
-                        const fileName = files[0].name;
-                        const fileId = fileName.replace('.pdf', '');
-                        setNewDatasetItem({ ...newDatasetItem, inputPdf: fileId });
-                      }
-                    }}
-                  />
-                  
-                  {uploadedPdf ? (
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <span className="material-icons text-4xl text-green-500">description</span>
-                      <p className="text-sm">PDF uploaded successfully</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUploadedPdf(null);
-                          setNewDatasetItem({ ...newDatasetItem, inputPdf: "" });
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <span className="material-icons text-4xl text-gray-400">upload_file</span>
-                      <p>Drag & drop a PDF file here or click to browse</p>
-                      <p className="text-xs text-gray-500">Supports PDF files only</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <label htmlFor="validResponse" className="text-sm font-medium">
-                Valid Response
-              </label>
-              <Textarea
-                id="validResponse"
-                value={newDatasetItem.validResponse}
-                onChange={(e) => setNewDatasetItem({ ...newDatasetItem, validResponse: e.target.value })}
-                placeholder="Enter the expected valid response for this input..."
-                rows={3}
-              />
-            </div>
-          </div>
-          
-          <div className="flex justify-end">
-            <Button 
-              onClick={handleAddDatasetItem} 
-              disabled={addDatasetItemMutation.isPending}
-            >
-              {addDatasetItemMutation.isPending ? (
-                <>
-                  <span className="material-icons animate-spin mr-2">refresh</span>
-                  Adding...
-                </>
-              ) : "Add Item"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <DatasetItemDialog
+        isOpen={isAddItemDialogOpen}
+        onClose={() => setIsAddItemDialogOpen(false)}
+        dataset={selectedDataset || undefined}
+      />
       
       {/* Edit Dataset Item Dialog */}
       <Dialog open={isEditItemDialogOpen} onOpenChange={setIsEditItemDialogOpen}>
@@ -1317,124 +896,58 @@ export default function Datasets() {
               </RadioGroup>
             </div>
             
-            {/* Conditional input based on type */}
             {newDatasetItem.inputType === "text" && (
               <div className="space-y-2">
-                <label htmlFor="edit-inputText" className="text-sm font-medium">
-                  Input Text
-                </label>
+                <Label htmlFor="edit-inputText">Input Text</Label>
                 <Textarea
                   id="edit-inputText"
                   value={newDatasetItem.inputText}
                   onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputText: e.target.value })}
-                  placeholder="Enter text input..."
-                  rows={4}
+                  placeholder="Enter the input text..."
+                  rows={3}
                 />
               </div>
             )}
             
             {newDatasetItem.inputType === "image" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="edit-imageUrl" className="text-sm font-medium">
-                    Image URL
-                  </label>
-                  <Input
-                    id="edit-imageUrl"
-                    value={newDatasetItem.inputImage}
-                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputImage: e.target.value })}
-                    placeholder="https://example.com/image.jpg"
-                    disabled={!!uploadedImage}
-                  />
-                </div>
-                
-                <div 
-                  className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => document.getElementById('edit-imageUpload')?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.add('border-blue-500');
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove('border-blue-500');
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove('border-blue-500');
-                    
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0 && files[0].type.startsWith('image/')) {
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        if (event.target?.result) {
-                          setUploadedImage(event.target.result as string);
-                          toast({
-                            title: "Image uploaded",
-                            description: "Image has been uploaded."
-                          });
+              <div className="space-y-2">
+                <Label htmlFor="edit-inputImage">Image Upload or URL</Label>
+                <div className="border border-dashed border-gray-300 rounded-md p-4">
+                  <div className="space-y-2">
+                    <Input
+                      id="edit-inputImage"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            if (reader.result) {
+                              setUploadedImage(reader.result.toString());
+                            }
+                          };
+                          reader.readAsDataURL(file);
                         }
-                      };
-                      reader.readAsDataURL(files[0]);
-                    } else {
-                      toast({
-                        title: "Invalid file",
-                        description: "Please upload an image file.",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                >
-                  <input
-                    type="file"
-                    id="edit-imageUpload"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (files && files.length > 0) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          if (event.target?.result) {
-                            setUploadedImage(event.target.result as string);
-                            toast({
-                              title: "Image uploaded",
-                              description: "Image has been uploaded."
-                            });
-                          }
-                        };
-                        reader.readAsDataURL(files[0]);
-                      }
-                    }}
-                  />
+                      }}
+                    />
+                    <p className="text-xs text-gray-500">Or enter an image URL:</p>
+                    <Input
+                      type="text"
+                      value={newDatasetItem.inputImage}
+                      onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputImage: e.target.value })}
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
                   
-                  {uploadedImage ? (
-                    <div className="flex flex-col items-center justify-center gap-2">
+                  {uploadedImage && (
+                    <div className="mt-4">
+                      <p className="text-xs font-medium mb-2">Preview:</p>
                       <img 
                         src={uploadedImage} 
-                        alt="Uploaded" 
-                        className="max-h-32 object-contain"
+                        alt="Uploaded preview" 
+                        className="max-h-40 max-w-full object-contain" 
                       />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUploadedImage(null);
-                          setNewDatasetItem({ ...newDatasetItem, inputImage: "" });
-                        }}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <span className="material-icons text-4xl text-gray-400">image</span>
-                      <p>Drag & drop an image here or click to browse</p>
-                      <p className="text-xs text-gray-500">Supports JPEG, PNG, GIF, etc.</p>
                     </div>
                   )}
                 </div>
@@ -1442,134 +955,43 @@ export default function Datasets() {
             )}
             
             {newDatasetItem.inputType === "pdf" && (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="edit-pdfId" className="text-sm font-medium">
-                    PDF ID
-                  </label>
-                  <Input
-                    id="edit-pdfId"
-                    value={newDatasetItem.inputPdf}
-                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputPdf: e.target.value })}
-                    placeholder="e.g., document-id-123"
-                    disabled={!!uploadedPdf}
-                  />
-                </div>
-                
-                <div 
-                  className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => document.getElementById('edit-pdfUpload')?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.add('border-blue-500');
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove('border-blue-500');
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    e.currentTarget.classList.remove('border-blue-500');
-                    
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0 && files[0].type === 'application/pdf') {
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        if (event.target?.result) {
-                          setUploadedPdf(event.target.result as string);
-                          toast({
-                            title: "PDF uploaded",
-                            description: "PDF file has been uploaded."
-                          });
-                          
-                          // Save the file ID (name without extension) to the form state
-                          const fileName = files[0].name;
-                          const fileId = fileName.replace('.pdf', '');
-                          setNewDatasetItem({ ...newDatasetItem, inputPdf: fileId });
+              <div className="space-y-2">
+                <Label htmlFor="edit-inputPdf">PDF Upload or ID</Label>
+                <div className="border border-dashed border-gray-300 rounded-md p-4">
+                  <div className="space-y-2">
+                    <Input
+                      id="edit-inputPdf"
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            if (reader.result) {
+                              setUploadedPdf(reader.result.toString());
+                            }
+                          };
+                          reader.readAsDataURL(file);
                         }
-                      };
-                      reader.readAsDataURL(files[0]);
-                    } else {
-                      toast({
-                        title: "Invalid file",
-                        description: "Please upload a PDF file.",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                >
-                  <input
-                    type="file"
-                    id="edit-pdfUpload"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (files && files.length > 0) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          if (event.target?.result) {
-                            setUploadedPdf(event.target.result as string);
-                            toast({
-                              title: "PDF uploaded",
-                              description: "PDF file has been uploaded."
-                            });
-                          }
-                        };
-                        reader.readAsDataURL(files[0]);
-                        
-                        // Save the file ID (name without extension) to the form state
-                        const fileName = files[0].name;
-                        const fileId = fileName.replace('.pdf', '');
-                        setNewDatasetItem({ ...newDatasetItem, inputPdf: fileId });
-                      }
-                    }}
-                  />
+                      }}
+                    />
+                    <p className="text-xs text-gray-500">Or enter a PDF ID:</p>
+                    <Input
+                      type="text"
+                      value={newDatasetItem.inputPdf}
+                      onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputPdf: e.target.value })}
+                      placeholder="pdf_123456789"
+                    />
+                  </div>
                   
-                  {uploadedPdf ? (
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      {uploadedPdf === "placeholder" ? (
-                        <>
-                          <span className="material-icons text-4xl text-blue-500">description</span>
-                          <p className="text-sm">Using existing PDF</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setUploadedPdf(null);
-                              setNewDatasetItem({ ...newDatasetItem, inputPdf: "" });
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-icons text-4xl text-green-500">description</span>
-                          <p className="text-sm">New PDF uploaded successfully</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setUploadedPdf(null);
-                              setNewDatasetItem({ ...newDatasetItem, inputPdf: "" });
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <span className="material-icons text-4xl text-gray-400">upload_file</span>
-                      <p>Drag & drop a PDF file here or click to browse</p>
-                      <p className="text-xs text-gray-500">Supports PDF files only</p>
+                  {uploadedPdf && (
+                    <div className="mt-2">
+                      <p className="text-xs font-medium text-green-600">
+                        {uploadedPdf === "placeholder" 
+                          ? "Using existing PDF" 
+                          : "New PDF selected and ready for upload"}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1577,9 +999,7 @@ export default function Datasets() {
             )}
             
             <div className="space-y-2">
-              <label htmlFor="edit-validResponse" className="text-sm font-medium">
-                Valid Response
-              </label>
+              <Label htmlFor="edit-validResponse">Valid Response</Label>
               <Textarea
                 id="edit-validResponse"
                 value={newDatasetItem.validResponse}
