@@ -326,12 +326,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "PDF data is required" });
       }
       
-      // Generate a safe file ID based on the original filename and a random string
-      const safeFileName = fileName 
-        ? fileName.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)
-        : 'unnamed';
+      // Generate a safe file ID that preserves the original filename 
+      // But still add a random part for uniqueness in the storage system
       const randomPart = Math.random().toString(36).substring(2, 10);
-      const fileId = `pdf_${safeFileName}_${randomPart}`;
+      const fileId = `pdf_${randomPart}`;
+      
+      // Store the original filename without modifications
+      const originalFileName = fileName || 'unnamed.pdf';
       
       console.log("Received PDF upload request with name:", fileName);
       console.log("PDF data length:", fileData.length, "characters");

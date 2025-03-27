@@ -107,7 +107,7 @@ export default function DatasetItemDialog({
       // Show success toast
       toast({
         title: 'PDF uploaded',
-        description: `The PDF "${response.originalFileName}" has been uploaded successfully`
+        description: `The PDF "${response.originalFileName || 'file'}" has been uploaded successfully`
       });
       
       // Continue with dataset item creation
