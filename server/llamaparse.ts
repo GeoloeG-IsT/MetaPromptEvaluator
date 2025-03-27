@@ -3,12 +3,16 @@ import * as path from 'path';
 import { promisify } from 'util';
 import * as https from 'https';
 import * as http from 'http';
-import { Readable } from 'stream';
 
-// LlamaParse API endpoints (from https://docs.cloud.llamaindex.ai/llamaparse/getting_started/api)
-// The sync version directly returns the parsed content
-const LLAMAPARSE_HOST = 'api.cloud.llamaindex.ai';
-const LLAMAPARSE_SYNC_PATH = '/api/llamaparse/sync';
+// LlamaIndex API endpoints (from https://docs.cloud.llamaindex.ai/API)
+const LLAMAINDEX_API_HOST = 'api.cloud.llamaindex.ai';
+const UPLOAD_FILE_PATH = '/api/v1/parsing/upload';
+const JOB_STATUS_PATH = '/api/v1/parsing/job';
+const JOB_RESULT_MARKDOWN_PATH = '/api/v1/parsing/job';
+
+// Maximum number of retries and timeout between retries
+const MAX_RETRIES = 30;
+const RETRY_TIMEOUT_MS = 2000;
 
 /**
  * Parse a PDF file using LlamaIndex Cloud's LlamaParse service
@@ -23,7 +27,7 @@ export async function parsePdfToMarkdown(
   outputMarkdownPath: string
 ): Promise<string> {
   try {
-    console.log(`Parsing PDF to Markdown using LlamaParse: ${pdfFilePath}`);
+    console.log(`Parsing PDF to Markdown using LlamaIndex API: ${pdfFilePath}`);
     
     // Check if we have the API key
     const apiKey = process.env.LLAMAINDEX_API_KEY;
@@ -40,88 +44,29 @@ export async function parsePdfToMarkdown(
     const fileData = fs.readFileSync(pdfFilePath);
     const fileSize = fileData.length;
     const fileName = path.basename(pdfFilePath);
+    console.log(`PDF file read: ${fileName} (${fileSize} bytes)`);
     
-    return new Promise((resolve, reject) => {
-      try {
-        console.log(`Uploading PDF file: ${fileName} (${fileSize} bytes)`);
-        
-        // Create a random boundary for the multipart form
-        const boundary = `----FormBoundary${Math.random().toString(36).substring(2)}`;
-        
-        // Create the multipart form data manually
-        const postData = createMultipartForm(boundary, fileData, fileName);
-        
-        // Set up the request options (using the sync endpoint as per documentation)
-        const options = {
-          hostname: LLAMAPARSE_HOST,
-          port: 443,
-          path: LLAMAPARSE_SYNC_PATH,
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': `multipart/form-data; boundary=${boundary}`,
-            'Content-Length': postData.length,
-            'Accept': 'application/json'
-          }
-        };
-        
-        console.log(`Sending request to LlamaParse API: ${LLAMAPARSE_HOST}${LLAMAPARSE_SYNC_PATH}`);
-        
-        // Make the request
-        const req = https.request(options, (res) => {
-          let data = '';
-          
-          // Handle response data
-          res.on('data', (chunk) => {
-            data += chunk;
-          });
-          
-          // Handle request completion
-          res.on('end', () => {
-            // Check response status
-            if (res.statusCode !== 200) {
-              console.error(`LlamaParse API error: ${res.statusCode} - ${data}`);
-              return reject(new Error(`LlamaParse API error: ${res.statusCode} - ${res.statusMessage || 'API Error'}`));
-            }
-            
-            try {
-              // Parse the response according to LlamaIndex docs
-              const parseResult = JSON.parse(data);
-              console.log(`Successfully parsed PDF to text, response received with status: ${parseResult.status}`);
-              
-              // According to docs, the result is in the 'content' field
-              const markdownContent = parseResult.content || '';
-              console.log(`Extracted content length: ${markdownContent.length} characters`);
-              console.log(`Content preview: ${markdownContent.substring(0, 100)}...`);
-              
-              // Save the markdown to file
-              fs.writeFileSync(outputMarkdownPath, markdownContent);
-              console.log(`Saved markdown content to: ${outputMarkdownPath}`);
-              
-              resolve(markdownContent);
-            } catch (parseError: any) {
-              console.error('Failed to parse API response:', parseError);
-              console.error('Raw response:', data.substring(0, 500) + '...');
-              reject(new Error(`Failed to parse API response: ${parseError?.message || 'Unknown error'}`));
-            }
-          });
-        });
-        
-        // Handle request errors
-        req.on('error', (error: any) => {
-          console.error('Error making request to LlamaParse API:', error);
-          reject(new Error(`Request to LlamaParse API failed: ${error?.message || 'Unknown error'}`));
-        });
-        
-        // Send the request data
-        req.write(postData);
-        req.end();
-        
-      } catch (error: any) {
-        reject(new Error(`Failed to make API request: ${error?.message || 'Unknown error'}`));
-      }
-    });
+    // Step 1: Upload the file and get job_id
+    console.log('Step 1: Uploading PDF to LlamaIndex API for parsing...');
+    const jobId = await uploadFileToLlamaIndex(apiKey, fileData, fileName);
+    console.log(`Job ID received: ${jobId}`);
     
+    // Step 2: Poll for job status until complete
+    console.log('Step 2: Polling for job completion...');
+    await waitForJobCompletion(apiKey, jobId);
+    console.log('Job completed successfully');
+    
+    // Step 3: Get the markdown result
+    console.log('Step 3: Retrieving markdown result...');
+    const markdownContent = await getJobResultMarkdown(apiKey, jobId);
+    console.log(`Retrieved markdown content (${markdownContent.length} characters)`);
+    
+    // Step 4: Save the markdown file
+    console.log(`Step 4: Saving markdown to ${outputMarkdownPath}`);
+    fs.writeFileSync(outputMarkdownPath, markdownContent);
+    console.log('Markdown saved successfully');
+    
+    return markdownContent;
   } catch (error: any) {
     console.error('Error parsing PDF to Markdown:', error);
     throw new Error(`Failed to parse PDF: ${error?.message || 'Unknown error'}`);
@@ -129,40 +74,281 @@ export async function parsePdfToMarkdown(
 }
 
 /**
- * Create a multipart form with the PDF file
+ * Upload a file to LlamaIndex API
+ * This corresponds to the first step of the LlamaIndex parsing workflow
  * 
- * @param boundary The boundary string for the multipart form
- * @param fileData The PDF file data
- * @param fileName The name of the PDF file
- * @returns The multipart form data as a Buffer
+ * @param apiKey The LlamaIndex API key
+ * @param fileData The file data as a Buffer
+ * @param fileName The name of the file
+ * @returns A Promise that resolves to the job_id
  */
-function createMultipartForm(boundary: string, fileData: Buffer, fileName: string): Buffer {
-  // Create form parts
-  const formParts = [];
+async function uploadFileToLlamaIndex(
+  apiKey: string, 
+  fileData: Buffer, 
+  fileName: string
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create a random boundary for the multipart form
+      const boundary = `----FormBoundary${Math.random().toString(36).substring(2)}`;
+      
+      // Create the multipart form data with the file
+      const formParts = [];
+      
+      // Add the file part
+      formParts.push(
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+        `Content-Type: application/pdf\r\n\r\n`
+      );
+      formParts.push(fileData);
+      formParts.push('\r\n');
+      
+      // Add the closing boundary
+      formParts.push(`--${boundary}--\r\n`);
+      
+      // Combine all parts into a single buffer
+      const postData = Buffer.concat(
+        formParts.map(part => typeof part === 'string' ? Buffer.from(part) : part)
+      );
+      
+      // Set up the request options
+      const options = {
+        hostname: LLAMAINDEX_API_HOST,
+        port: 443,
+        path: UPLOAD_FILE_PATH,
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': postData.length,
+          'Accept': 'application/json'
+        }
+      };
+      
+      console.log(`Sending upload request to: ${LLAMAINDEX_API_HOST}${UPLOAD_FILE_PATH}`);
+      
+      // Make the request
+      const req = https.request(options, (res) => {
+        let data = '';
+        
+        // Handle response data
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        // Handle request completion
+        res.on('end', () => {
+          // Check response status
+          if (res.statusCode !== 200) {
+            console.error(`Upload API error: ${res.statusCode} - ${data}`);
+            return reject(new Error(`Upload API error: ${res.statusCode} - ${res.statusMessage || 'API Error'}`));
+          }
+          
+          try {
+            // Parse the response to get the job_id
+            const response = JSON.parse(data);
+            
+            if (!response.job_id) {
+              console.error('No job_id in response:', data);
+              return reject(new Error('No job_id in API response'));
+            }
+            
+            resolve(response.job_id);
+          } catch (parseError: any) {
+            console.error('Failed to parse API response:', parseError);
+            console.error('Raw response:', data);
+            reject(new Error(`Failed to parse API response: ${parseError?.message || 'Unknown error'}`));
+          }
+        });
+      });
+      
+      // Handle request errors
+      req.on('error', (error: any) => {
+        console.error('Error making upload request:', error);
+        reject(new Error(`Upload request failed: ${error?.message || 'Unknown error'}`));
+      });
+      
+      // Send the request data
+      req.write(postData);
+      req.end();
+      
+    } catch (error: any) {
+      reject(new Error(`Failed to upload file: ${error?.message || 'Unknown error'}`));
+    }
+  });
+}
+
+/**
+ * Check the status of a parsing job
+ * 
+ * @param apiKey The LlamaIndex API key
+ * @param jobId The job ID to check
+ * @returns A Promise that resolves to the job status
+ */
+async function getJobStatus(apiKey: string, jobId: string): Promise<{ status: string, progress?: number }> {
+  return new Promise((resolve, reject) => {
+    try {
+      // Set up the request options
+      const options = {
+        hostname: LLAMAINDEX_API_HOST,
+        port: 443,
+        path: `${JOB_STATUS_PATH}/${jobId}`,
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json'
+        }
+      };
+      
+      // Make the request
+      const req = https.request(options, (res) => {
+        let data = '';
+        
+        // Handle response data
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        // Handle request completion
+        res.on('end', () => {
+          // Check response status
+          if (res.statusCode !== 200) {
+            console.error(`Job status API error: ${res.statusCode} - ${data}`);
+            return reject(new Error(`Job status API error: ${res.statusCode} - ${res.statusMessage || 'API Error'}`));
+          }
+          
+          try {
+            // Parse the response to get the job status
+            const response = JSON.parse(data);
+            
+            if (!response.status) {
+              console.error('No status in response:', data);
+              return reject(new Error('No status in API response'));
+            }
+            
+            resolve({
+              status: response.status,
+              progress: response.progress
+            });
+          } catch (parseError: any) {
+            console.error('Failed to parse API response:', parseError);
+            console.error('Raw response:', data);
+            reject(new Error(`Failed to parse API response: ${parseError?.message || 'Unknown error'}`));
+          }
+        });
+      });
+      
+      // Handle request errors
+      req.on('error', (error: any) => {
+        console.error('Error making job status request:', error);
+        reject(new Error(`Job status request failed: ${error?.message || 'Unknown error'}`));
+      });
+      
+      // End the request
+      req.end();
+      
+    } catch (error: any) {
+      reject(new Error(`Failed to get job status: ${error?.message || 'Unknown error'}`));
+    }
+  });
+}
+
+/**
+ * Wait for a job to complete by polling its status
+ * 
+ * @param apiKey The LlamaIndex API key
+ * @param jobId The job ID to check
+ * @returns A Promise that resolves when the job is complete
+ */
+async function waitForJobCompletion(apiKey: string, jobId: string): Promise<void> {
+  let retries = 0;
   
-  // Add the file part
-  formParts.push(
-    `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
-    `Content-Type: application/pdf\r\n\r\n`
-  );
-  formParts.push(fileData);
-  formParts.push('\r\n');
+  while (retries < MAX_RETRIES) {
+    try {
+      const jobStatus = await getJobStatus(apiKey, jobId);
+      
+      console.log(`Job status: ${jobStatus.status}${jobStatus.progress ? `, progress: ${jobStatus.progress.toFixed(2)}%` : ''}`);
+      
+      if (jobStatus.status === 'completed') {
+        console.log('Job completed successfully');
+        return;
+      } else if (jobStatus.status === 'failed') {
+        throw new Error('Job failed');
+      } else if (jobStatus.status === 'in_progress' || jobStatus.status === 'pending') {
+        // Wait before checking again
+        await new Promise(resolve => setTimeout(resolve, RETRY_TIMEOUT_MS));
+        retries++;
+      } else {
+        throw new Error(`Unknown job status: ${jobStatus.status}`);
+      }
+    } catch (error: any) {
+      console.error(`Error checking job status (attempt ${retries + 1}/${MAX_RETRIES}):`, error);
+      await new Promise(resolve => setTimeout(resolve, RETRY_TIMEOUT_MS));
+      retries++;
+    }
+  }
   
-  // Add the result_type parameter according to docs
-  formParts.push(
-    `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="output_format"\r\n\r\n` +
-    `markdown\r\n`
-  );
-  
-  // Add the closing boundary
-  formParts.push(`--${boundary}--\r\n`);
-  
-  // Combine all parts into a single buffer
-  return Buffer.concat(
-    formParts.map(part => typeof part === 'string' ? Buffer.from(part) : part)
-  );
+  throw new Error(`Job did not complete after ${MAX_RETRIES} attempts`);
+}
+
+/**
+ * Get the markdown result of a completed job
+ * 
+ * @param apiKey The LlamaIndex API key
+ * @param jobId The completed job ID
+ * @returns A Promise that resolves to the markdown content
+ */
+async function getJobResultMarkdown(apiKey: string, jobId: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    try {
+      // Set up the request options
+      const options = {
+        hostname: LLAMAINDEX_API_HOST,
+        port: 443,
+        path: `${JOB_RESULT_MARKDOWN_PATH}/${jobId}/result/markdown`,
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'text/markdown'
+        }
+      };
+      
+      // Make the request
+      const req = https.request(options, (res) => {
+        let data = '';
+        
+        // Handle response data
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        
+        // Handle request completion
+        res.on('end', () => {
+          // Check response status
+          if (res.statusCode !== 200) {
+            console.error(`Job result API error: ${res.statusCode} - ${data}`);
+            return reject(new Error(`Job result API error: ${res.statusCode} - ${res.statusMessage || 'API Error'}`));
+          }
+          
+          // The response is the markdown content directly
+          resolve(data);
+        });
+      });
+      
+      // Handle request errors
+      req.on('error', (error: any) => {
+        console.error('Error making job result request:', error);
+        reject(new Error(`Job result request failed: ${error?.message || 'Unknown error'}`));
+      });
+      
+      // End the request
+      req.end();
+      
+    } catch (error: any) {
+      reject(new Error(`Failed to get job result: ${error?.message || 'Unknown error'}`));
+    }
+  });
 }
 
 /**
