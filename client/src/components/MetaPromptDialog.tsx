@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 interface MetaPromptDialogProps {
   isOpen: boolean;
@@ -58,12 +58,11 @@ export default function MetaPromptDialog({
   // Mutation for generating LLM response using processed meta prompt
   const generateLLMResponseMutation = useMutation({
     mutationFn: async (data: { processedPrompt: string }) => {
-      const response = await apiRequest(
+      return apiRequest<{ llmResponse: string }>(
         "POST", 
         "/api/generate-llm-response", 
         data
       );
-      return response.json();
     },
     onSuccess: (data) => {
       const response = data.llmResponse;
@@ -74,7 +73,8 @@ export default function MetaPromptDialog({
         description: "The LLM has generated a response based on your prompt.",
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error generating LLM response:", error);
       toast({
         title: "Generation failed",
         description: "There was an error generating the LLM response. Please try again.",
@@ -92,8 +92,7 @@ export default function MetaPromptDialog({
       
       const method = isEditing ? 'PUT' : 'POST';
       
-      const response = await apiRequest(method, url, promptData);
-      return response.json();
+      return apiRequest(method, url, promptData);
     },
     onSuccess: () => {
       // Invalidate queries to refresh data
@@ -110,7 +109,8 @@ export default function MetaPromptDialog({
       
       onClose();
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error saving prompt:", error);
       toast({
         title: "Save failed",
         description: "There was an error saving your meta prompt. Please try again.",
@@ -185,6 +185,9 @@ export default function MetaPromptDialog({
           <DialogTitle>
             {isEditing ? 'Edit Meta Prompt' : 'Create New Meta Prompt'}
           </DialogTitle>
+          <DialogDescription>
+            Create a meta prompt template to improve LLM outputs.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="grid grid-cols-1 gap-6 py-4">
