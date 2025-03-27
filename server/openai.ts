@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { DatasetItem } from "@shared/schema";
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { bucketStorage } from './bucket';
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -243,119 +244,19 @@ export async function generatePdfResponse(finalPrompt: string, pdfFileId: string
     console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
     console.log("PDF File ID:", pdfFileId);
     
-    // First, retrieve the PDF from our bucket storage directly from the filesystem
-    console.log("Checking PDF in bucket");
-    
-    const bucketPath = path.join('.', 'MetaPromptEvaluatorBucket');
-    const filePath = path.join(bucketPath, `${pdfFileId}.pdf`);
-    
-    console.log(`Looking for PDF at path: ${filePath}`);
-    
-    // Check if the file exists
-    let fileExists = false;
+    // Check if the file exists using our bucket storage
     try {
-      await fs.access(filePath);
-      fileExists = true;
-      console.log(`PDF file found at ${filePath}`);
+      // Extract text from the PDF using our bucket storage utility
+      const extractedText = await bucketStorage.extractTextFromPdf(pdfFileId);
+      
+      console.log(`Successfully extracted text from PDF, length: ${extractedText.length} characters`);
+      console.log(`Text preview: ${extractedText.substring(0, 100)}...`);
+      
+      // Now that we have text from the PDF, use our text response generator
+      return await generateTextResponse(finalPrompt, extractedText);
     } catch (error) {
-      console.error(`PDF file not found at ${filePath}:`, error);
-    }
-    
-    // Construct a message with information about the PDF
-    const pdfPrompt = "The PDF document contains information that needs to be extracted and analyzed.";
-    
-    if (!fileExists) {
-      console.warn(`PDF file ${pdfFileId} does not exist in the bucket, returning error message`);
-      return `Error: PDF file with ID ${pdfFileId} was not found in storage.`;
-    }
-    
-    // For known test files, we'll use predefined responses
-    // This is important because we don't actually parse the PDF content yet
-    if (pdfFileId === "invoice_rec6jnwamPj8m1u5y") {
-      console.log("Using predefined response for test file invoice_rec6jnwamPj8m1u5y");
-      return JSON.stringify({
-        "total_gross": 131.70,
-        "total_net": 110.67,
-        "business_name": "Brauhaus an der Thomaskirche",
-        "items": [
-          { "name": "Steinpilzcremesuppe", "price": 17.80 },
-          { "name": "Tomatensuppe", "price": 15.00 },
-          { "name": "Apfelschorle 0,5l", "price": 11.00 },
-          { "name": "Pils Thomask. 0,5l", "price": 10.40 },
-          { "name": "Schwarz Thomask. 0,5l", "price": 20.80 },
-          { "name": "Pizza Salame Prosc.", "price": 12.90 },
-          { "name": "Pizza Tonno Cipolla", "price": 12.90 },
-          { "name": "Spaghetti Carbonara", "price": 14.90 },
-          { "name": "Gnocchi al Gorgonzol", "price": 16.00 }
-        ]
-      }, null, 2);
-    } else if (pdfFileId === "invoice_p9sj211oaQxlLdaX3") {
-      console.log("Using predefined response for test file invoice_p9sj211oaQxlLdaX3");
-      return JSON.stringify({
-        "total_gross": 89.50,
-        "total_net": 75.21,
-        "business_name": "Cafe Milano",
-        "items": [
-          { "name": "Cappuccino", "price": 4.50 },
-          { "name": "Espresso", "price": 3.00 },
-          { "name": "Tiramisu", "price": 6.50 },
-          { "name": "Pizza Margherita", "price": 12.50 },
-          { "name": "Lasagna", "price": 14.50 },
-          { "name": "Mineral Water", "price": 3.50 },
-          { "name": "Wine (House)", "price": 18.00 },
-          { "name": "Bruschetta", "price": 7.50 },
-          { "name": "Gelato", "price": 5.50 },
-          { "name": "Panna Cotta", "price": 6.00 }
-        ]
-      }, null, 2);
-    } else if (pdfFileId === "invoice_d7bKplq2nR93vxzS4") {
-      console.log("Using predefined response for test file invoice_d7bKplq2nR93vxzS4");
-      return JSON.stringify({
-        "total_gross": 156.20,
-        "total_net": 131.26,
-        "business_name": "Taj Mahal Restaurant",
-        "items": [
-          { "name": "Chicken Tikka Masala", "price": 18.90 },
-          { "name": "Garlic Naan", "price": 3.50 },
-          { "name": "Vegetable Samosas", "price": 6.80 },
-          { "name": "Lamb Biryani", "price": 21.90 },
-          { "name": "Mango Lassi", "price": 4.50 },
-          { "name": "Palak Paneer", "price": 16.90 },
-          { "name": "Tandoori Chicken", "price": 19.90 },
-          { "name": "Raita", "price": 3.80 },
-          { "name": "Rice", "price": 4.00 },
-          { "name": "Gulab Jamun", "price": 6.50 }
-        ]
-      }, null, 2);
-    } else {
-      // For other PDFs, we'll use OpenAI to generate a response
-      console.log("Using OpenAI to generate response for PDF");
-      
-      // Call the OpenAI API with text instructions about the PDF
-      const openaiResponse = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: finalPrompt
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: pdfPrompt
-              }
-            ]
-          }
-        ],
-        temperature: 0.5,
-        max_tokens: 800
-      });
-      
-      const generatedResult = openaiResponse.choices[0].message.content || "Failed to generate response for PDF";
-      console.log("Generated response (preview):", generatedResult.substring(0, 100) + "...");
-      return generatedResult;
+      console.error(`Error extracting text from PDF ${pdfFileId}:`, error);
+      return `Error: Unable to extract text from PDF file with ID ${pdfFileId}. ${error.message || ''}`;
     }
   } catch (error: any) {
     console.error("Error generating PDF response:", error);
