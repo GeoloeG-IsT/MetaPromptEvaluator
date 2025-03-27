@@ -48,7 +48,7 @@ export default function Dashboard() {
         <EvaluationDialog
           isOpen={isEvaluationDialogOpen}
           onClose={() => setIsEvaluationDialogOpen(false)}
-          prompt={selectedPrompt}
+          selectedPrompt={selectedPrompt}
         />
       )}
     </div>

@@ -71,7 +71,7 @@ export type EvaluationResultItem = {
 export async function evaluatePrompt(
   metaPrompt: string,
   datasetItems: DatasetItem[],
-  userPrompt?: string
+  userPrompt: string
 ): Promise<EvaluationResultItem[]> {
   const results: EvaluationResultItem[] = [];
   

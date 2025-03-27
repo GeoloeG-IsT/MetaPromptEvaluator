@@ -14,13 +14,13 @@ import { useLocation } from 'wouter';
 interface EvaluationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  evaluation?: Evaluation | undefined; // Add evaluation prop for editing existing evaluations
+  selectedPrompt?: Prompt | undefined; // Add evaluation prop for editing existing evaluations
 }
 
 export default function EvaluationDialog({
   isOpen,
   onClose,
-  evaluation // Add evaluation for editing existing evaluations
+  selectedPrompt // Add evaluation for editing existing evaluations
 }: EvaluationDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -45,9 +45,6 @@ export default function EvaluationDialog({
     queryFn: getQueryFn<Prompt[]>({ on401: 'returnNull' })
   });
   
-  // Get selected prompt
-  const selectedPrompt = prompts.find(p => p.id === promptId);
-  
   // Create evaluation
   const createEvaluationMutation = useMutation({
     mutationFn: async (data: PromptEvaluationParams) => {
@@ -57,7 +54,7 @@ export default function EvaluationDialog({
         priority: 'Balanced' // Default value
       });
     },
-    onSuccess: (response: any, variables) => {
+    onSuccess: (response: any, variables: any) => {
       // Access id from response and userPrompt from variables
       startEvaluationMutation.mutate({ 
         id: response.id, 
@@ -112,16 +109,8 @@ export default function EvaluationDialog({
       // Set default values first
       setUserPrompt('');
       
-      // If editing an existing evaluation, use its values
-      if (evaluation) {
-        setPromptId(evaluation.promptId);
-        setDatasetId(evaluation.datasetId);
-        if (evaluation.userPrompt) {
-          setUserPrompt(evaluation.userPrompt);
-        }
-      } 
       // If no initial prompt or evaluation, use defaults
-      else {
+      if (!selectedPrompt) {
         if (prompts.length > 0) {
           setPromptId(prompts[0].id);
         } else {
@@ -135,7 +124,7 @@ export default function EvaluationDialog({
         }
       }
     }
-  }, [isOpen, datasets, prompts, evaluation]);
+  }, [isOpen, datasets, prompts, selectedPrompt]);
   
   // Update evaluation mutation
   const updateEvaluationMutation = useMutation({
