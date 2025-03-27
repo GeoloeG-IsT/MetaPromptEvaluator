@@ -209,7 +209,7 @@ export async function generateImageResponse(
 ): Promise<string> {
   try {
     console.log("IMAGE RESPONSE GENERATION");
-    console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
+    console.log("Final Prompt:", finalPrompt);
     console.log("Image URL:", imageUrl);
 
     // Prepare the messages for the API call
@@ -273,8 +273,8 @@ export async function generateTextResponse(
 ): Promise<string> {
   try {
     console.log("TEXT RESPONSE GENERATION");
-    console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
-    console.log("Input Text:", inputText.substring(0, 100) + "...");
+    console.log("Final Prompt:", finalPrompt);
+    console.log("Input Text:", inputText);
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -327,7 +327,7 @@ export async function generatePdfResponse(
 ): Promise<string> {
   try {
     console.log("PDF RESPONSE GENERATION");
-    console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
+    console.log("Final Prompt:", finalPrompt);
     console.log("PDF File ID:", pdfFileId);
 
     try {
