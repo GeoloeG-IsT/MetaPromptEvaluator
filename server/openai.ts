@@ -101,13 +101,13 @@ export async function evaluatePrompt(
       let generatedResponse: string;
       if (item.inputType === "image" && item.inputImage) {
         console.log("Generating response for IMAGE input");
-        generatedResponse = await generateImageResponse(finalPrompt, item.inputImage, userPrompt);
+        generatedResponse = await generateImageResponse(finalPrompt, item.inputImage);
       } else if (item.inputType === "text" && item.inputText) {
         console.log("Generating response for TEXT input");
-        generatedResponse = await generateTextResponse(finalPrompt, item.inputText, userPrompt);
+        generatedResponse = await generateTextResponse(finalPrompt, item.inputText);
       } else if (item.inputType === "pdf" && item.inputPdf) {
         console.log("Generating response for PDF input");
-        generatedResponse = await generatePdfResponse(finalPrompt, item.inputPdf, userPrompt);
+        generatedResponse = await generatePdfResponse(finalPrompt, item.inputPdf);
       } else {
         console.log("WARNING: Dataset item has no valid input (image, text, or PDF)");
         generatedResponse = "Error: Dataset item has no valid input";
@@ -149,7 +149,7 @@ export async function evaluatePrompt(
  * Generate a response for an image input using the OpenAI vision API.
  * This uses the processed meta prompt as the system message and the image as the user message.
  */
-export async function generateImageResponse(finalPrompt: string, imageUrl: string, userPrompt?: string): Promise<string> {
+export async function generateImageResponse(finalPrompt: string, imageUrl: string): Promise<string> {
   try {
     console.log("IMAGE RESPONSE GENERATION");
     console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
@@ -168,7 +168,7 @@ export async function generateImageResponse(finalPrompt: string, imageUrl: strin
           content: [
             {
               type: "text",
-              text: userPrompt || "Please analyze this image."
+              text: "Please analyze this image."
             },
             {
               type: "image_url",
@@ -198,16 +198,11 @@ export async function generateImageResponse(finalPrompt: string, imageUrl: strin
  * Generate a response for a text input using the OpenAI API.
  * This uses the processed meta prompt as the system message and the text as the user message.
  */
-export async function generateTextResponse(finalPrompt: string, inputText: string, userPrompt?: string): Promise<string> {
+export async function generateTextResponse(finalPrompt: string, inputText: string): Promise<string> {
   try {
     console.log("TEXT RESPONSE GENERATION");
     console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
     console.log("Input Text:", inputText.substring(0, 100) + "...");
-    
-    // Combine user prompt and input text if both are provided
-    const userContent = userPrompt 
-      ? `${userPrompt}\n\nInput: ${inputText}`
-      : inputText;
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -218,7 +213,7 @@ export async function generateTextResponse(finalPrompt: string, inputText: strin
         },
         {
           role: "user",
-          content: userContent
+          content: inputText
         }
       ],
       temperature: 0.5,
@@ -242,7 +237,7 @@ export async function generateTextResponse(finalPrompt: string, inputText: strin
  * Note: OpenAI doesn't directly support PDFs through the chat completions API.
  * However, we can check if the file exists and send content about the PDF.
  */
-export async function generatePdfResponse(finalPrompt: string, pdfFileId: string, userPrompt?: string): Promise<string> {
+export async function generatePdfResponse(finalPrompt: string, pdfFileId: string): Promise<string> {
   try {
     console.log("PDF RESPONSE GENERATION");
     console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
@@ -267,9 +262,7 @@ export async function generatePdfResponse(finalPrompt: string, pdfFileId: string
     }
     
     // Construct a message with information about the PDF
-    const pdfPrompt = userPrompt 
-      ? `${userPrompt}\n\nThe PDF document contains information that needs to be processed.`
-      : `The PDF document contains information that needs to be extracted and analyzed.`;
+    const pdfPrompt = "The PDF document contains information that needs to be extracted and analyzed.";
     
     if (!fileExists) {
       console.warn(`PDF file ${pdfFileId} does not exist in the bucket, returning error message`);
