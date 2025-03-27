@@ -11,7 +11,8 @@ import {
   insertDatasetSchema, 
   insertDatasetItemSchema,
   insertEvaluationSchema,
-  Evaluation
+  Evaluation,
+  InsertDataset
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -156,6 +157,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(dataset);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch dataset" });
+    }
+  });
+  
+  // Update dataset
+  app.put("/api/datasets/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, description } = req.body;
+      
+      // Ensure the dataset exists
+      const existingDataset = await storage.getDataset(id);
+      if (!existingDataset) {
+        return res.status(404).json({ message: "Dataset not found" });
+      }
+      
+      // Only allow updating name and description
+      const updateData: Partial<InsertDataset> = {};
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      
+      // Update the dataset
+      const updatedDataset = await storage.updateDataset(id, updateData);
+      
+      if (updatedDataset) {
+        res.json(updatedDataset);
+      } else {
+        res.status(500).json({ message: "Failed to update dataset" });
+      }
+    } catch (error) {
+      console.error("Error updating dataset:", error);
+      res.status(500).json({ message: "Failed to update dataset" });
     }
   });
   

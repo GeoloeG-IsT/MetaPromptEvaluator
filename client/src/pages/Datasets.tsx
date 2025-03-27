@@ -78,6 +78,13 @@ export default function Datasets() {
 
   // State for dataset details view
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
+  
+  // State for editing dataset
+  const [isEditDatasetDialogOpen, setIsEditDatasetDialogOpen] = useState(false);
+  const [editingDataset, setEditingDataset] = useState<NewDatasetForm>({
+    name: "",
+    description: "",
+  });
 
   // State for adding/editing dataset items
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
@@ -177,6 +184,43 @@ export default function Datasets() {
         description:
           error.message ||
           "There was an error deleting the dataset. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Mutation to update a dataset
+  const updateDatasetMutation = useMutation({
+    mutationFn: (data: { id: number; dataset: NewDatasetForm }) => 
+      apiRequest("PUT", `/api/datasets/${data.id}`, data.dataset),
+    onSuccess: () => {
+      // Close edit dialog
+      setIsEditDatasetDialogOpen(false);
+      
+      // Refetch datasets
+      queryClient.invalidateQueries({ queryKey: ["/api/datasets"] });
+      
+      // Update the selected dataset if it's the one being edited
+      if (selectedDataset) {
+        setSelectedDataset({
+          ...selectedDataset,
+          name: editingDataset.name,
+          description: editingDataset.description,
+        });
+      }
+      
+      toast({
+        title: "Dataset updated",
+        description: "The dataset has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      console.error("Error updating dataset:", error);
+      toast({
+        title: "Error updating dataset",
+        description:
+          error.message ||
+          "There was an error updating the dataset. Please try again.",
         variant: "destructive",
       });
     },
@@ -613,6 +657,39 @@ export default function Datasets() {
       deleteDatasetMutation.mutate(selectedDataset.id);
     }
   };
+  
+  const openEditDatasetDialog = () => {
+    if (!selectedDataset) return;
+    
+    // Set the editing dataset with current values
+    setEditingDataset({
+      name: selectedDataset.name,
+      description: selectedDataset.description || "",
+    });
+    
+    // Open the edit dialog
+    setIsEditDatasetDialogOpen(true);
+  };
+  
+  const handleUpdateDataset = () => {
+    if (!selectedDataset) return;
+    
+    // Validate name field
+    if (!editingDataset.name.trim()) {
+      toast({
+        title: "Missing name",
+        description: "Please provide a name for your dataset.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Update the dataset
+    updateDatasetMutation.mutate({
+      id: selectedDataset.id,
+      dataset: editingDataset,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -647,6 +724,14 @@ export default function Datasets() {
               <Button variant="outline" size="sm" onClick={addNewItem}>
                 <span className="material-icons text-sm mr-1">add</span>
                 Add Item
+              </Button>
+              <Button
+                variant="outline" 
+                size="sm"
+                onClick={openEditDatasetDialog}
+              >
+                <span className="material-icons text-sm mr-1">edit</span>
+                Edit Dataset
               </Button>
               <Button
                 variant="destructive"
@@ -983,6 +1068,63 @@ export default function Datasets() {
                 </>
               ) : (
                 "Create Dataset"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Dataset Dialog */}
+      <Dialog open={isEditDatasetDialogOpen} onOpenChange={setIsEditDatasetDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Edit Dataset</DialogTitle>
+            <DialogDescription>
+              Update the dataset details.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                value={editingDataset.name}
+                onChange={(e) =>
+                  setEditingDataset({ ...editingDataset, name: e.target.value })
+                }
+                placeholder="Dataset name"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description (optional)</Label>
+              <Textarea
+                id="edit-description"
+                value={editingDataset.description}
+                onChange={(e) =>
+                  setEditingDataset({ ...editingDataset, description: e.target.value })
+                }
+                placeholder="Brief description of the dataset"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              onClick={handleUpdateDataset}
+              disabled={updateDatasetMutation.isPending}
+            >
+              {updateDatasetMutation.isPending ? (
+                <>
+                  <span className="material-icons animate-spin mr-2">
+                    refresh
+                  </span>
+                  Updating...
+                </>
+              ) : (
+                "Update Dataset"
               )}
             </Button>
           </div>
