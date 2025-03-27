@@ -711,14 +711,11 @@ export default function Datasets() {
                             </span>
                             <div className="text-sm">
                               <div className="font-medium">
-                                {item.inputPdf?.startsWith("pdf_")
-                                  ? item.inputPdf
-                                      .split("_")
-                                      .slice(1, -1)
-                                      .join("_")
-                                      .replace(/_/g, " ")
+                                {item.inputPdf?.startsWith('pdf_') 
+                                  ? item.inputPdf.split('_').slice(1, -1).join('_').replace(/_/g, ' ')
                                   : item.inputPdf}
                               </div>
+                              <div className="text-xs text-gray-500">{item.inputPdf}</div>
                               <div className="flex mt-1">
                                 <Button
                                   variant="ghost"
