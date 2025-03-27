@@ -115,8 +115,18 @@ async function uploadFileToLlamaIndex(
       );
       formParts.push("de");
       formParts.push("\r\n");
-      
-      console.log("Setting document language to 'de' (German) for LlamaIndex parsing");
+
+      // Add the premium_mode part (set to 'true' for using premium mode)
+      formParts.push(
+        `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="premium_mode"\r\n\r\n`,
+      );
+      formParts.push("true"); // Send as string instead of boolean
+      formParts.push("\r\n");
+
+      console.log(
+        "Setting document language to 'de' (German) for LlamaIndex parsing",
+      );
 
       // Add the closing boundary
       formParts.push(`--${boundary}--\r\n`);
@@ -124,7 +134,7 @@ async function uploadFileToLlamaIndex(
       // Combine all parts into a single buffer
       const postData = Buffer.concat(
         formParts.map((part) =>
-          typeof part === "string" ? Buffer.from(part) : part,
+          typeof part === "string" ? Buffer.from(part) : (part as Buffer),
         ),
       );
 
@@ -373,7 +383,7 @@ async function getJobResultMarkdown(
   return new Promise((resolve, reject) => {
     try {
       console.log(`Getting markdown result for job: ${jobId}`);
-      
+
       // Set up the request options
       const options = {
         hostname: LLAMAINDEX_API_HOST,
@@ -382,7 +392,7 @@ async function getJobResultMarkdown(
         method: "GET",
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          Accept: "application/json",  // Request JSON response instead of markdown directly
+          Accept: "application/json", // Request JSON response instead of markdown directly
         },
       };
 
@@ -410,14 +420,16 @@ async function getJobResultMarkdown(
           try {
             // Parse the JSON response
             const response = JSON.parse(data);
-            
+
             // Extract the markdown field from the response
             if (!response.markdown) {
               console.error("No markdown field in API response:", data);
               return reject(new Error("No markdown field in API response"));
             }
-            
-            console.log(`Successfully retrieved markdown (${response.markdown.length} characters)`);
+
+            console.log(
+              `Successfully retrieved markdown (${response.markdown.length} characters)`,
+            );
             resolve(response.markdown);
           } catch (parseError: any) {
             console.error("Failed to parse API response:", parseError);

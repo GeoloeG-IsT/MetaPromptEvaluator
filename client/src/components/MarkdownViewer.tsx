@@ -47,6 +47,91 @@ export function MarkdownViewer({ fileId, title }: MarkdownViewerProps) {
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
   };
+  
+  const openInPopup = () => {
+    if (!markdown) return;
+    
+    // Create a new window for the popup
+    const popupWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!popupWindow) {
+      toast({
+        title: 'Popup Blocked',
+        description: 'Please allow popups to view the markdown content',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Write HTML content to the popup window
+    popupWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title || 'Markdown Content'}</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            padding: 20px;
+            margin: 0;
+            background-color: white;
+            color: black;
+            line-height: 1.5;
+          }
+          .container {
+            max-width: 800px;
+            margin: 0 auto;
+          }
+          header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eaeaea;
+          }
+          h1 {
+            font-size: 20px;
+            margin: 0;
+          }
+          .content {
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            overflow-y: auto;
+          }
+          .btn {
+            padding: 8px 16px;
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+          }
+          .btn:hover {
+            background-color: #e2e8f0;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <header>
+            <h1>${title || 'Markdown Content'} <span style="font-size: 12px; color: #888;">(Extracted from PDF)</span></h1>
+            <button class="btn" onclick="window.print()">
+              Print
+            </button>
+          </header>
+          <div class="content">${markdown}</div>
+        </div>
+      </body>
+      </html>
+    `);
+    
+    // Close the document to finish loading
+    popupWindow.document.close();
+  };
 
   if (isLoading) {
     return (
@@ -98,12 +183,18 @@ export function MarkdownViewer({ fileId, title }: MarkdownViewerProps) {
             {title || 'Markdown Content'} 
             <span className="text-xs text-gray-500 ml-2">(Extracted from PDF)</span>
           </h3>
-          <Button variant="outline" size="sm" onClick={toggleExpand}>
-            <span className="material-icons text-sm mr-1">
-              {isExpanded ? 'compress' : 'expand'}
-            </span>
-            {isExpanded ? 'Collapse' : 'Expand'}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={openInPopup}>
+              <span className="material-icons text-sm mr-1">open_in_new</span>
+              Open in Popup
+            </Button>
+            <Button variant="outline" size="sm" onClick={toggleExpand}>
+              <span className="material-icons text-sm mr-1">
+                {isExpanded ? 'compress' : 'expand'}
+              </span>
+              {isExpanded ? 'Collapse' : 'Expand'}
+            </Button>
+          </div>
         </div>
         
         <div 
