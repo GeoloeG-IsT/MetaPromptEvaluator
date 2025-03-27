@@ -3,6 +3,7 @@ import path from 'path';
 import { promisify } from 'util';
 import { mkdir } from 'fs/promises';
 import { spawn } from 'child_process';
+import { parsePdfToMarkdown, isPdfAlreadyParsed, getExistingMarkdownContent } from './llamaparse';
 
 // Define the bucket name for PDF storage
 const BUCKET_NAME = 'MetaPromptEvaluatorBucket';
@@ -20,7 +21,7 @@ const BUCKET_NAME = 'MetaPromptEvaluatorBucket';
  * @param buffer The PDF buffer
  * @returns Extracted text or error message
  */
-async function extractTextFromPdf(buffer: Buffer): Promise<string> {
+async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
   try {
     console.log("Attempting to extract text from PDF using advanced extraction methods");
     
@@ -464,11 +465,11 @@ class LocalBucketStorage {
   }
 
   /**
-   * Extract text from a PDF file using enhanced extraction methods
+   * Extract text from a PDF file using LlamaParse for enhanced extraction
    * 
    * For known test files (the invoice examples), we'll return predefined text data
    * to ensure consistent and accurate evaluation results.
-   * For other PDFs, we'll use our enhanced extraction methods.
+   * For other PDFs, we'll use LlamaParse to convert them to markdown.
    * 
    * @param fileId The file ID
    * @returns Extracted text from the PDF
@@ -556,12 +557,42 @@ class LocalBucketStorage {
         `;
       }
       else {
-        // For non-test files, use our enhanced extraction methods
-        console.log(`Using enhanced extraction methods for file: ${fileId}`);
-        const pdfBuffer = await this.getPdfBuffer(fileId);
+        // For non-test files, use LlamaParse
+        console.log(`Using LlamaParse for file: ${fileId}`);
         
-        // Use the enhanced extraction function
-        const extractedText = await extractTextFromPdf(pdfBuffer);
+        // Define paths for PDF and its corresponding Markdown file
+        const pdfFilePath = path.join(this.bucketPath, `${fileId}.pdf`);
+        const markdownFilePath = path.join(this.bucketPath, `${fileId}.md`);
+        
+        let extractedText = '';
+        
+        // Check if markdown already exists
+        if (isPdfAlreadyParsed(markdownFilePath)) {
+          console.log(`Found existing markdown file for PDF: ${markdownFilePath}`);
+          extractedText = await getExistingMarkdownContent(markdownFilePath);
+        } else {
+          console.log(`No existing markdown file found, parsing PDF: ${pdfFilePath}`);
+          
+          try {
+            // Parse PDF to markdown using LlamaParse
+            extractedText = await parsePdfToMarkdown(pdfFilePath, markdownFilePath);
+          } catch (error: any) {
+            console.error(`LlamaParse failed, falling back to basic extraction: ${error.message}`);
+            
+            // Fallback to our built-in extraction if LlamaParse fails
+            const pdfBuffer = await this.getPdfBuffer(fileId);
+            
+            // Call the legacy extraction method directly to avoid recursion
+            try {
+              // Using our standard PDF text extraction algorithm as a fallback
+              extractedText = await extractTextFromPdfBuffer(pdfBuffer);
+            } catch (innerError) {
+              console.error("Fallback PDF extraction also failed:", innerError);
+              extractedText = "PDF extraction failed. Please try a different file format.";
+            }
+          }
+        }
+        
         console.log(`Extracted text of length: ${extractedText.length} characters`);
         console.log(`Text preview: ${extractedText.substring(0, 100)}...`);
         
@@ -580,15 +611,22 @@ class LocalBucketStorage {
   async deletePdf(fileId: string): Promise<void> {
     try {
       const unlink = promisify(fs.unlink);
-      const filePath = path.join(this.bucketPath, `${fileId}.pdf`);
+      const pdfFilePath = path.join(this.bucketPath, `${fileId}.pdf`);
+      const markdownFilePath = path.join(this.bucketPath, `${fileId}.md`);
       
-      // Check if the file exists
-      if (!fs.existsSync(filePath)) {
-        return; // If file doesn't exist, consider the deletion successful
+      // Check if the PDF file exists
+      if (fs.existsSync(pdfFilePath)) {
+        console.log(`Deleting PDF file: ${pdfFilePath}`);
+        await unlink(pdfFilePath);
+      } else {
+        console.log(`PDF file not found: ${pdfFilePath}`);
       }
       
-      // Delete the file
-      await unlink(filePath);
+      // Also delete the markdown file if it exists
+      if (fs.existsSync(markdownFilePath)) {
+        console.log(`Deleting associated markdown file: ${markdownFilePath}`);
+        await unlink(markdownFilePath);
+      }
     } catch (error: any) {
       console.error('Error deleting PDF from bucket:', error);
       throw new Error(`Failed to delete PDF: ${error?.message || 'Unknown error'}`);
