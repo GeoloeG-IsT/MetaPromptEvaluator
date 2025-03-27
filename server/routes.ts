@@ -184,14 +184,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 // Dataset items
   app.post("/api/dataset-items", async (req: Request, res: Response) => {
     try {
+      console.log("POST /api/dataset-items - Request body:", JSON.stringify(req.body));
       const validatedData = insertDatasetItemSchema.parse(req.body);
+      console.log("POST /api/dataset-items - Validated data:", JSON.stringify(validatedData));
       const datasetItem = await storage.createDatasetItem(validatedData);
+      console.log("POST /api/dataset-items - Created item:", JSON.stringify(datasetItem));
       res.status(201).json(datasetItem);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("POST /api/dataset-items - Validation error:", error.format());
         res.status(400).json({ message: "Invalid dataset item data", errors: error.format() });
       } else {
-        res.status(500).json({ message: "Failed to create dataset item" });
+        console.error("POST /api/dataset-items - Server error:", error);
+        res.status(500).json({ message: "Failed to create dataset item", error: error.toString() });
       }
     }
   });
@@ -199,10 +204,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/datasets/:id/items", async (req: Request, res: Response) => {
     try {
       const datasetId = parseInt(req.params.id);
+      console.log(`GET /api/datasets/${datasetId}/items - Fetching items for dataset ID: ${datasetId}`);
       const datasetItems = await storage.getDatasetItems(datasetId);
+      console.log(`GET /api/datasets/${datasetId}/items - Found ${datasetItems.length} items`);
       res.json(datasetItems);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch dataset items" });
+    } catch (error: any) {
+      console.error(`GET /api/datasets/:id/items - Error:`, error);
+      res.status(500).json({ message: "Failed to fetch dataset items", error: error.toString() });
     }
   });
   
