@@ -37,9 +37,10 @@ export type Prompt = typeof prompts.$inferSelect;
 export const datasetItems = pgTable("dataset_items", {
   id: serial("id").primaryKey(),
   datasetId: integer("dataset_id").notNull(),
-  inputType: text("input_type").notNull().default("image"), // 'text' or 'image'
+  inputType: text("input_type").notNull().default("image"), // 'text', 'image', or 'pdf'
   inputText: text("input_text"),
   inputImage: text("input_image"), // URL or Base64 of image
+  inputPdf: text("input_pdf"),     // URL or Base64 of PDF
   validResponse: text("valid_response").notNull(),
 });
 

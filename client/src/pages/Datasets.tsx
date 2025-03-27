@@ -47,12 +47,14 @@ export default function Datasets() {
     description: "",
   });
   const [newDatasetItem, setNewDatasetItem] = useState({
-    inputType: "text", // Can be "text" or "image"
+    inputType: "text", // Can be "text", "image", or "pdf"
     inputText: "",
     inputImage: "",
+    inputPdf: "",
     validResponse: "",
   });
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedPdf, setUploadedPdf] = useState<string | null>(null);
   
   // Handle clipboard paste for images
   useEffect(() => {
@@ -699,9 +701,10 @@ export default function Datasets() {
               value={newDatasetItem.inputType}
               onValueChange={(value) => setNewDatasetItem({ ...newDatasetItem, inputType: value })}
             >
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="text">Text Input</TabsTrigger>
                 <TabsTrigger value="image">Image Input</TabsTrigger>
+                <TabsTrigger value="pdf">PDF Input</TabsTrigger>
               </TabsList>
               
               <TabsContent value="text" className="pt-4">
@@ -873,6 +876,7 @@ export default function Datasets() {
             >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="text">Text Input</TabsTrigger>
+                <TabsTrigger value="pdf">PDF Input</TabsTrigger>
                 <TabsTrigger value="image">Image Input</TabsTrigger>
               </TabsList>
               
