@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Prompt, Dataset, Evaluation } from '@shared/schema';
+import { PromptEvaluationParams } from '@/lib/types';
 import { getQueryFn, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -49,18 +50,19 @@ export default function EvaluationDialog({
   
   // Create evaluation
   const createEvaluationMutation = useMutation({
-    mutationFn: async (data: {
-      promptId: number;
-      datasetId: number;
-    }) => {
+    mutationFn: async (data: PromptEvaluationParams) => {
       return await apiRequest('POST', '/api/evaluations', {
         ...data,
-        userPrompt: ''
+        validationMethod: 'Comprehensive', // Default value
+        priority: 'Balanced' // Default value
       });
     },
-    onSuccess: (response: any) => {
-      // Access id from response
-      startEvaluationMutation.mutate({ id: response.id, userPrompt });
+    onSuccess: (response: any, variables) => {
+      // Access id from response and userPrompt from variables
+      startEvaluationMutation.mutate({ 
+        id: response.id, 
+        userPrompt: variables.userPrompt 
+      });
     },
     onError: () => {
       setIsLoading(false);
@@ -139,10 +141,7 @@ export default function EvaluationDialog({
   const updateEvaluationMutation = useMutation({
     mutationFn: async (data: {
       id: number;
-      promptId: number;
-      datasetId: number;
-      userPrompt?: string;
-    }) => {
+    } & PromptEvaluationParams) => {
       return await apiRequest('PUT', `/api/evaluations/${data.id}`, {
         promptId: data.promptId,
         datasetId: data.datasetId,
@@ -199,7 +198,9 @@ export default function EvaluationDialog({
         const response = await apiRequest('POST', '/api/evaluations', {
           promptId,
           datasetId,
-          userPrompt
+          userPrompt: userPrompt || '',
+          validationMethod: 'Comprehensive', // Default value 
+          priority: 'Balanced' // Default value
         });
         
         setIsSaving(false);
@@ -237,9 +238,13 @@ export default function EvaluationDialog({
     
     setIsLoading(true);
     
+    // Ensure userPrompt is at least an empty string if undefined
+    const safeUserPrompt = userPrompt || '';
+    
     createEvaluationMutation.mutate({
       promptId,
-      datasetId
+      datasetId,
+      userPrompt: safeUserPrompt
     });
   };
   
