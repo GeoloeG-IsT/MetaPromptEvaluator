@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateMetaPrompt, evaluatePrompt, generateLLMResponse } from "./openai";
+import { generateFinalPrompt, evaluatePrompt, generateLLMResponse } from "./openai";
 import { z } from "zod";
 import { 
   insertPromptSchema, 
@@ -220,17 +220,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // OpenAI interaction
-  app.post("/api/generate-meta-prompt", async (req: Request, res: Response) => {
+  app.post("/api/generate-final-prompt", async (req: Request, res: Response) => {
     try {
-      const { initialPrompt } = req.body;
+      const { metaPrompt, userPrompt } = req.body;
       
-      if (!initialPrompt) {
-        return res.status(400).json({ message: "Initial prompt is required" });
+      if (!metaPrompt) {
+        return res.status(400).json({ message: "Meta prompt is required" });
       }
       
-      // Use default values for complexity and tone
-      const metaPrompt = await generateMetaPrompt(initialPrompt);
-      res.json({ metaPrompt });
+      const finalPrompt = await generateFinalPrompt(metaPrompt, userPrompt);
+      res.json({ finalPrompt });
     } catch (error) {
       console.error("Error generating meta prompt:", error);
       res.status(500).json({ message: "Failed to generate meta prompt" });
@@ -298,7 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/evaluations/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
-      const { promptId, datasetId, validationMethod, priority, userPrompt } = req.body;
+      const { promptId, datasetId, userPrompt } = req.body;
       
       // Ensure the evaluation exists
       const existingEvaluation = await storage.getEvaluation(id);
@@ -317,8 +316,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updateData: Partial<Evaluation> = {};
       if (promptId !== undefined) updateData.promptId = promptId;
       if (datasetId !== undefined) updateData.datasetId = datasetId;
-      if (validationMethod !== undefined) updateData.validationMethod = validationMethod;
-      if (priority !== undefined) updateData.priority = priority;
       if (userPrompt !== undefined) updateData.userPrompt = userPrompt;
       
       // Update the evaluation
@@ -363,7 +360,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/evaluations/:id/start", async (req: Request, res: Response) => {
     try {
       const evaluationId = parseInt(req.params.id);
-      const { userPrompt } = req.body; // Get userPrompt from request body
       const evaluation = await storage.getEvaluation(evaluationId);
       
       if (!evaluation) {
@@ -394,16 +390,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`Starting evaluation for prompt ID ${prompt.id} with ${datasetItems.length} dataset items`);
           console.log(`Using meta prompt: ${prompt.metaPrompt?.substring(0, 100)}...`);
-          console.log(`Using validation method: ${evaluation.validationMethod}`);
-          console.log(`Using priority: ${evaluation.priority || "Balanced"}`);
-          console.log(`User prompt: ${userPrompt || "(None provided)"}`);
+          console.log(`User prompt: ${evaluation.userPrompt || "(None provided)"}`);
           
           const results = await evaluatePrompt(
             prompt.metaPrompt || "", 
             datasetItems, 
-            evaluation.validationMethod,
-            evaluation.priority || "Balanced",
-            userPrompt // Pass userPrompt to evaluatePrompt function
+            evaluation.userPrompt // Pass userPrompt to evaluatePrompt function
           );
           
           // Store results and update evaluation

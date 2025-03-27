@@ -24,8 +24,6 @@ interface PromptTableProps {
   onEvaluate?: (prompt: Prompt) => void;
 }
 
-// Category badges removed as requested
-
 export default function PromptTable({ prompts, onCreateNew, onEvaluate }: PromptTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();

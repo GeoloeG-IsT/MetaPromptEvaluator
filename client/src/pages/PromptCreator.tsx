@@ -20,8 +20,7 @@ export default function PromptCreator() {
   const { toast } = useToast();
   const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
   const [selectedDataset, setSelectedDataset] = useState<number | null>(null);
-  const [validationMethod, setValidationMethod] = useState("LLM Pattern Matching");
-  const [priority, setPriority] = useState("Balanced");
+  const [userPrompt, setUserPrompt] = useState<string>("");
   
   // Fetch datasets
   const { data: datasets } = useQuery<Dataset[]>({
@@ -83,8 +82,7 @@ export default function PromptCreator() {
     startEvaluationMutation.mutate({
       promptId: selectedPrompt.id,
       datasetId: selectedDataset,
-      validationMethod,
-      priority
+      userPrompt: userPrompt
     });
   };
 
@@ -152,33 +150,7 @@ export default function PromptCreator() {
                   </Select>
                 </div>
                 
-                <div className="p-4 border rounded-md bg-gray-50">
-                  <div className="text-xs font-medium text-gray-500 mb-2">Validation Method</div>
-                  <Select value={validationMethod} onValueChange={setValidationMethod}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="LLM Pattern Matching">LLM Pattern Matching</SelectItem>
-                      <SelectItem value="Rule-based Validation">Rule-based Validation</SelectItem>
-                      <SelectItem value="Content Similarity">Content Similarity</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 
-                <div className="p-4 border rounded-md bg-gray-50">
-                  <div className="text-xs font-medium text-gray-500 mb-2">Processing Priority</div>
-                  <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Speed (Fast, Less Accurate)">Speed (Fast, Less Accurate)</SelectItem>
-                      <SelectItem value="Balanced">Balanced</SelectItem>
-                      <SelectItem value="Accuracy (Slower, More Precise)">Accuracy (Slower, More Precise)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
               
               <Button 

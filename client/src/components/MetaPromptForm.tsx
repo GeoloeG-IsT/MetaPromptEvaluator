@@ -51,32 +51,6 @@ export default function MetaPromptForm({ onSavePrompt }: MetaPromptFormProps) {
     }
   });
 
-  // Function to save the generated prompt and LLM response
-  const saveGeneratedPrompt = (processedPrompt: string, llmResponse: string) => {
-    if (processedPrompt && name) {
-      // Store info about the user prompt and meta prompt template
-      const initialPromptWithContext = `Meta Prompt Template: ${metaPrompt}\nUser Prompt: ${userPrompt}`;
-      
-      // Create data that matches our insert schema
-      const promptData = {
-        name,
-        category: "Other", // Default category
-        initialPrompt: initialPromptWithContext,
-        metaPrompt: llmResponse, // Store the LLM response in metaPrompt field
-        complexity: "Standard", // Default complexity
-        tone: "Balanced", // Default tone
-        tags: null, // No tags as requested
-        userId: 1, // Hard-coded for demo
-        // These will be added by the server
-        id: 0, // Placeholder that will be replaced by the server
-        createdAt: null, // Will be set by the server
-      };
-      
-      // Call onSavePrompt with the properly typed prompt data
-      onSavePrompt(promptData);
-    }
-  };
-
   const handleGenerateFinalPrompt = () => {
     if (!metaPrompt.trim()) {
       toast({

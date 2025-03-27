@@ -30,20 +30,41 @@ async function seedDatabase() {
     // Add some sample prompts with simplified schema
     const samplePrompts: InsertPrompt[] = [
       {
-        name: 'Detailed Image Description',
-        metaPrompt: 'You are an expert art critic with deep knowledge of visual aesthetics. When presented with {{user_prompt}}, provide a detailed analysis including: composition elements, color theory, cultural context, emotional impact, and technical execution. Use professional terminology and offer specific insights about what makes the image distinctive.',
+        name: 'Meta Prompt for Invoice Analysis',
+        metaPrompt: `
+          # Meta-Prompt for Generating Data Extraction Prompts
+
+          ## Role:
+          You are an expert Prompt Engineering Assistant specializing in creating highly effective data extraction prompts for Large Language Models (LLMs).
+
+          ## Task:
+          Your goal is to generate a specific, detailed, and robust data extraction prompt based on the user's prompt. The generated prompt should instruct an LLM to extract information accurately from a given source text or image (like an invoice, report, email, etc.) and format it as specified.
+
+          ## Input:
+          You will receive a user request describing the data they want to extract and the desired output format.
+          User Prompt: 
+          =======
+          {{user_prompt}}
+          =======
+
+          ## Process:
+          1.  **Analyze the User Request:** Identify the specific data fields to be extracted. Pay close attention to names, quantities, totals, dates, structured items (like line items in an invoice), etc.
+          2.  **Determine the Output Format:** Understand the required structure (e.g., JSON, plain list, CSV-like text). If JSON, infer or define the schema (keys, nesting, data types - string, number, boolean, array).
+          3.  **Construct the Extraction Prompt:** Create a prompt for another LLM that includes the following elements:
+              * **Clear Goal:** State that the task is data extraction from a provided text.
+              * **Target Fields:** Explicitly list *all* the data fields identified in step 1.
+              * **Output Structure Definition:** Clearly describe the required output format.
+                  * For JSON: Define the expected keys, nested structures (objects within objects, arrays of objects), and implied data types (e.g., prices should be numbers, names should be strings). Use backticks for key names if helpful.
+                  * For other formats: Provide clear instructions on how the data should be presented.
+              * **Handling Missing Data:** Instruct the LLM on how to handle cases where a requested piece of data is not found in the source text (e.g., use `null` for JSON values, use "N/A", or omit the field if appropriate for the format). Specify a default preference (e.g., `null` for JSON).
+              * **Robustness Instructions:** Encourage the LLM to be robust to variations in wording or layout within the source text but to remain accurate.
+              * **Strict Formatting:** Emphasize that the output should *strictly* adhere to the requested format and structure.
+              * **Conciseness:** Instruct the LLM to output *only* the extracted data in the specified format, without any introductory text, explanations, or apologies.
+
+          ## Output:
+          Generate *only* the data extraction prompt itself. Do not include any explanations about how you generated it or any conversational filler. The output should be ready to be used directly with an LLM and a source text document.`,
         userId
       },
-      {
-        name: 'Code Review Assistant',
-        metaPrompt: 'As an experienced software engineer, analyze the {{user_prompt}} for: potential bugs, performance issues, security vulnerabilities, maintainability concerns, and adherence to best practices. Provide specific code improvements with examples and explain the reasoning behind each suggestion. Focus on practical improvements that would have the most impact.',
-        userId
-      },
-      {
-        name: 'Learning Concept Explainer',
-        metaPrompt: 'You are an expert educator skilled at explaining complex concepts. When given {{user_prompt}}, create a comprehensive explanation that: 1) Starts with a simple analogy, 2) Builds up complexity gradually, 3) Provides concrete examples, 4) Addresses common misconceptions, and 5) Includes self-assessment questions. Your goal is to make the concept understandable to someone with no prior knowledge.',
-        userId
-      }
     ];
     
     // Check if we already have prompts
@@ -67,9 +88,8 @@ async function seedDatabase() {
     if (datasetCount === 0) {
       console.log('Adding sample dataset...');
       const sampleDataset: InsertDataset = {
-        name: 'Landscape Images',
-        description: 'A collection of landscape images for evaluation',
-        category: 'Vision',
+        name: 'Invoice Data Extraction',
+        description: 'A collection of invoices for data extraction evaluation',
         userId
       };
       

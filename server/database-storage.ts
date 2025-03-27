@@ -98,7 +98,6 @@ export class DatabaseStorage implements IStorage {
     
     if (dataset.name !== undefined) updateValues.name = dataset.name;
     if (dataset.description !== undefined) updateValues.description = dataset.description;
-    if (dataset.category !== undefined) updateValues.category = dataset.category;
     if (dataset.userId !== undefined) updateValues.userId = dataset.userId;
     
     const [result] = await db.update(datasets)
@@ -183,7 +182,7 @@ export class DatabaseStorage implements IStorage {
   async createEvaluation(evaluation: InsertEvaluation): Promise<Evaluation> {
     const insertValues = {
       ...evaluation,
-      priority: evaluation.priority || null,
+      userPrompt: '',
       status: 'pending',
       score: null,
       metrics: null,
@@ -213,10 +212,9 @@ export class DatabaseStorage implements IStorage {
     if (evaluation.score !== undefined) updateValues.score = evaluation.score;
     if (evaluation.metrics !== undefined) updateValues.metrics = evaluation.metrics;
     if (evaluation.completedAt !== undefined) updateValues.completedAt = evaluation.completedAt;
-    if (evaluation.priority !== undefined) updateValues.priority = evaluation.priority;
     if (evaluation.promptId !== undefined) updateValues.promptId = evaluation.promptId;
     if (evaluation.datasetId !== undefined) updateValues.datasetId = evaluation.datasetId;
-    if (evaluation.validationMethod !== undefined) updateValues.validationMethod = evaluation.validationMethod;
+    if (evaluation.userPrompt !== undefined) updateValues.userPrompt = evaluation.userPrompt;
     
     const [result] = await db.update(evaluations)
       .set(updateValues)

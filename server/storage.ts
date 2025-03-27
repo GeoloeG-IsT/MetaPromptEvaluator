@@ -84,7 +84,6 @@ export class MemStorage implements IStorage {
     this.createDataset({
       name: "Landscape Images",
       description: "A collection of landscape images for evaluation",
-      category: "Vision",
       userId: 1
     }).then(dataset => {
       // Add some sample dataset items

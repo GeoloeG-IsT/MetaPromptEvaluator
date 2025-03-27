@@ -36,21 +36,6 @@ function getScoreBadge(prompt: Prompt) {
   );
 }
 
-function getCategoryBadge(category: string) {
-  switch (category) {
-    case "Vision":
-      return <span className="px-2 py-1 text-xs rounded-full bg-indigo-100 text-primary">Vision</span>;
-    case "Text":
-      return <span className="px-2 py-1 text-xs rounded-full bg-pink-100 text-secondary">Text</span>;
-    case "Code":
-      return <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-600">Code</span>;
-    case "Multi-modal":
-      return <span className="px-2 py-1 text-xs rounded-full bg-purple-100 text-purple-600">Combined</span>;
-    default:
-      return <span className="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-600">Other</span>;
-  }
-}
-
 export default function ActivityTable({ activities, onViewAll }: ActivityTableProps) {
   return (
     <div className="bg-white rounded-lg shadow">
@@ -80,9 +65,6 @@ export default function ActivityTable({ activities, onViewAll }: ActivityTablePr
                 <tr key={activity.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-dark">{activity.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getCategoryBadge(activity.category)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {activity.createdAt 

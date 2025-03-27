@@ -32,10 +32,9 @@ export async function generateLLMResponse(
   }
 }
 
-export async function generateMetaPrompt(
-  initialPrompt: string,
-  complexity: string = "Standard",
-  tone: string = "Balanced"
+export async function generateFinalPrompt(
+  metaPrompt: string,
+  userPrompt: string,
 ): Promise<string> {
   try {
     const response = await openai.chat.completions.create({
@@ -43,27 +42,15 @@ export async function generateMetaPrompt(
       messages: [
         {
           role: "system",
-          content: 
-            `You are an expert in creating detailed meta prompts for LLMs. 
-            A meta prompt is a higher-level prompt that will be used to generate more specific prompts based on user inputs.
-            
-            The meta prompt should:
-            1. Be well-structured with clear sections and instructions
-            2. Include comprehensive guidance on how to analyze and respond to the initial prompt
-            3. Provide frameworks for generating consistent, high-quality responses
-            
-            Complexity level: ${complexity}
-            Tone: ${tone}
-            
-            Generate a detailed meta prompt based on the initial prompt provided by the user.`
+          content: metaPrompt
         },
         {
           role: "user",
-          content: initialPrompt
+          content: userPrompt
         }
       ],
-      temperature: 0.7,
-      max_tokens: 1000
+      temperature: 0.0,
+      max_tokens: 2048
     });
 
     return response.choices[0].message.content || "Failed to generate meta prompt";
@@ -84,31 +71,17 @@ export type EvaluationResultItem = {
 export async function evaluatePrompt(
   metaPrompt: string,
   datasetItems: DatasetItem[],
-  validationMethod: string,
-  priority: string,
   userPrompt?: string
 ): Promise<EvaluationResultItem[]> {
   const results: EvaluationResultItem[] = [];
   
-  // Adjust temperature based on priority
-  let temperature = 0.2;
-  if (priority === "Speed (Fast, Less Accurate)") {
-    temperature = 0.7;
-  } else if (priority === "Accuracy (Slower, More Precise)") {
-    temperature = 0;
-  }
-  
   // Inject user prompt into meta prompt
-  const processedMetaPrompt = userPrompt 
-    ? metaPrompt.replace(/{{user_prompt}}/g, userPrompt)
-    : metaPrompt;
+  const finalPrompt = await generateFinalPrompt(metaPrompt, userPrompt);
     
   console.log("=== EVALUATION INFO ===");
   console.log("Original Meta Prompt:", metaPrompt);
   console.log("User Prompt:", userPrompt);
-  console.log("Processed Meta Prompt:", processedMetaPrompt);
-  console.log("Validation Method:", validationMethod);
-  console.log("Priority:", priority);
+  console.log("Final Prompt:", finalPrompt);
   console.log("Number of Dataset Items:", datasetItems.length);
   console.log("=======================");
   
@@ -125,10 +98,10 @@ export async function evaluatePrompt(
       let generatedResponse: string;
       if (item.inputType === "image" && item.inputImage) {
         console.log("Generating response for IMAGE input");
-        generatedResponse = await generateImageResponse(processedMetaPrompt, item.inputImage, userPrompt);
+        generatedResponse = await generateImageResponse(finalPrompt, item.inputImage, userPrompt);
       } else if (item.inputType === "text" && item.inputText) {
         console.log("Generating response for TEXT input");
-        generatedResponse = await generateTextResponse(processedMetaPrompt, item.inputText, userPrompt);
+        generatedResponse = await generateTextResponse(finalPrompt, item.inputText, userPrompt);
       } else {
         console.log("WARNING: Dataset item has neither valid image nor text input");
         generatedResponse = "Error: Dataset item has no valid input";
@@ -140,7 +113,6 @@ export async function evaluatePrompt(
       const evaluationResult = await evaluateResponse(
         generatedResponse, 
         item.validResponse,
-        validationMethod
       );
       
       console.log(`Evaluation Result: Valid=${evaluationResult.isValid}, Score=${evaluationResult.score}`);
@@ -269,11 +241,9 @@ type EvaluationResponse = {
 export async function evaluateResponse(
   generatedResponse: string,
   validResponse: string,
-  validationMethod: string
 ): Promise<EvaluationResponse> {
   try {
     console.log("EVALUATING RESPONSE");
-    console.log("Validation Method:", validationMethod);
     console.log("Generated Response:", generatedResponse.substring(0, 100) + "...");
     console.log("Valid Response:", validResponse.substring(0, 100) + "...");
     
@@ -284,8 +254,6 @@ export async function evaluateResponse(
           role: "system",
           content: 
             `You are an expert evaluator of AI-generated responses. Your task is to evaluate how well the generated response matches the valid reference response.
-            
-            Validation method: ${validationMethod}
             
             Return your evaluation in JSON format with the following fields:
             - isValid: boolean indicating if the response meets quality threshold (set to true if the score is at least 70)

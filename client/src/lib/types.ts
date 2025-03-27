@@ -7,8 +7,8 @@ import type {
 } from "@shared/schema";
 
 // Response from the meta prompt generation API
-export interface MetaPromptResponse {
-  metaPrompt: string;
+export interface FinalPromptResponse {
+  finalPrompt: string;
 }
 
 // Response from the evaluation API
@@ -21,8 +21,7 @@ export interface EvaluationResponse {
 export interface PromptEvaluationParams {
   promptId: number;
   datasetId: number;
-  validationMethod: string;
-  priority: string;
+  userPrompt: string;
 }
 
 // Metrics from evaluation
@@ -43,13 +42,6 @@ export interface EvaluationWithMetrics extends Evaluation {
   results?: EvaluationResult[];
 }
 
-// Parameters for meta prompt generation
-export interface MetaPromptParams {
-  initialPrompt: string;
-  complexity: string;
-  tone: string;
-}
-
 // Stats for dashboard display
 export interface DashboardStat {
   title: string;
@@ -62,15 +54,6 @@ export interface DashboardStat {
     label: string;
     isPositive: boolean;
   };
-}
-
-// Filter options for prompts, evaluations, etc.
-export interface FilterOptions {
-  category?: string[];
-  dateRange?: [Date, Date];
-  searchQuery?: string;
-  sortBy?: 'date' | 'name' | 'score';
-  sortOrder?: 'asc' | 'desc';
 }
 
 // Navigation item type
@@ -98,12 +81,11 @@ export interface OpenAIConfig {
 }
 
 // User settings
-export interface UserSettings {
-  theme: 'light' | 'dark' | 'system';
-  defaultDatasetId?: number;
-  defaultValidationMethod: string;
-  defaultPriority: string;
-  autoEvaluate: boolean;
-  notifications: boolean;
-  apiConfig: Partial<OpenAIConfig>;
-}
+// export interface UserSettings {
+//   theme: 'light' | 'dark' | 'system';
+//   defaultDatasetId?: number;
+//   defaultUserPrompt: string;
+//   autoEvaluate: boolean;
+//   notifications: boolean;
+//   apiConfig: Partial<OpenAIConfig>;
+// }

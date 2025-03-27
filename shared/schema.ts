@@ -55,7 +55,6 @@ export const datasets = pgTable("datasets", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
-  category: text("category").notNull(),
   userId: integer("user_id"),
   itemCount: integer("item_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
@@ -75,8 +74,10 @@ export const evaluations = pgTable("evaluations", {
   id: serial("id").primaryKey(),
   promptId: integer("prompt_id").notNull(),
   datasetId: integer("dataset_id").notNull(),
-  validationMethod: text("validation_method").notNull(),
-  priority: text("priority").default("Balanced"),
+  // TODO(pg): Remove these fields
+  validationMethod: text("validation_method").notNull(),  // deprecated
+  priority: text("priority").default("Balanced"), // deprecated
+  // TODO(pg)
   userPrompt: text("user_prompt"),
   score: integer("score"),
   metrics: jsonb("metrics"), // Store metrics like accuracy, completeness, etc.

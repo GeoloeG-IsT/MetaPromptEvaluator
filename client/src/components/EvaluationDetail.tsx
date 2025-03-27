@@ -36,9 +36,7 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
-  const [validationMethod, setValidationMethod] = useState('');
-  const [priority, setPriority] = useState('');
-  
+  const [userPrompt, setUserPrompt] = useState('');
   // Fetch evaluation details
   const { 
     data: evaluation, 
@@ -99,14 +97,6 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
     enabled: !!evaluation?.datasetId,
   });
 
-  // Set initial form values when evaluation data is loaded
-  useEffect(() => {
-    if (evaluation) {
-      setValidationMethod(evaluation.validationMethod || 'Comprehensive');
-      setPriority(evaluation.priority || 'Balanced');
-    }
-  }, [evaluation]);
-
   // Update evaluation mutation
   const updateEvaluationMutation = useMutation({
     mutationFn: async (data: Partial<Evaluation>) => {
@@ -133,8 +123,7 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
   // Handle save button click
   const handleSave = () => {
     updateEvaluationMutation.mutate({
-      validationMethod,
-      priority
+      userPrompt
     });
   };
   
@@ -323,50 +312,9 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
             <div className="space-y-2">
               {isEditing ? (
                 <>
-                  <div className="space-y-1">
-                    <Label htmlFor="validationMethod">Validation Method</Label>
-                    <Select
-                      value={validationMethod}
-                      onValueChange={setValidationMethod}
-                    >
-                      <SelectTrigger id="validationMethod">
-                        <SelectValue placeholder="Select method" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Comprehensive">Comprehensive Evaluation</SelectItem>
-                        <SelectItem value="Semantic">Semantic Similarity</SelectItem>
-                        <SelectItem value="Output Format">Output Format Validation</SelectItem>
-                        <SelectItem value="Content Quality">Content Quality Assessment</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="priority">Priority</Label>
-                    <Select
-                      value={priority}
-                      onValueChange={setPriority}
-                    >
-                      <SelectTrigger id="priority">
-                        <SelectValue placeholder="Select priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Balanced">Balanced</SelectItem>
-                        <SelectItem value="Speed (Fast, Less Accurate)">Speed (Fast, Less Accurate)</SelectItem>
-                        <SelectItem value="Accuracy (Slower, More Precise)">Accuracy (Slower, More Precise)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </>
               ) : (
                 <>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Validation Method:</span>
-                    <span className="font-medium">{evaluation.validationMethod}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Priority:</span>
-                    <span className="font-medium">{evaluation.priority}</span>
-                  </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Completed:</span>
                     <span className="font-medium">

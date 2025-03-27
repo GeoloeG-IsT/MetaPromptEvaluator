@@ -43,7 +43,6 @@ export default function Datasets() {
   const [newDataset, setNewDataset] = useState({
     name: "",
     description: "",
-    category: "Vision",
   });
   const [newDatasetItem, setNewDatasetItem] = useState({
     inputType: "text", // Can be "text" or "image"
@@ -120,7 +119,7 @@ export default function Datasets() {
         description: "The dataset has been created successfully.",
       });
       setIsCreateDialogOpen(false);
-      setNewDataset({ name: "", description: "", category: "Vision" });
+      setNewDataset({ name: "", description: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/datasets"] });
     },
     onError: () => {
@@ -321,7 +320,6 @@ export default function Datasets() {
                 Back
               </Button>
               <h3 className="text-xl font-medium">{selectedDataset.name}</h3>
-              <Badge className="ml-2">{selectedDataset.category}</Badge>
             </div>
             <Button 
               variant="destructive"
@@ -464,7 +462,6 @@ export default function Datasets() {
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-lg">{dataset.name}</CardTitle>
                       <div className="flex items-center space-x-2">
-                        <Badge>{dataset.category}</Badge>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -523,27 +520,6 @@ export default function Datasets() {
                 onChange={(e) => setNewDataset({ ...newDataset, name: e.target.value })}
                 placeholder="e.g., Landscape Images"
               />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="category" className="text-sm font-medium">
-                Category
-              </label>
-              <Select 
-                value={newDataset.category} 
-                onValueChange={(value) => setNewDataset({ ...newDataset, category: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Vision">Vision</SelectItem>
-                  <SelectItem value="Text">Text</SelectItem>
-                  <SelectItem value="Code">Code</SelectItem>
-                  <SelectItem value="Multi-modal">Multi-modal</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             
             <div className="space-y-2">

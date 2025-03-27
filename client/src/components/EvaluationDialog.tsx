@@ -13,14 +13,12 @@ import { useLocation } from 'wouter';
 interface EvaluationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  prompt?: Prompt | undefined; // Make prompt optional as we'll now select it from a dropdown
   evaluation?: Evaluation | undefined; // Add evaluation prop for editing existing evaluations
 }
 
 export default function EvaluationDialog({
   isOpen,
   onClose,
-  prompt: initialPrompt, // Rename to initialPrompt to avoid confusion
   evaluation // Add evaluation for editing existing evaluations
 }: EvaluationDialogProps) {
   const { toast } = useToast();
@@ -28,9 +26,9 @@ export default function EvaluationDialog({
   const [, navigate] = useLocation();
   
   // Form state
-  const [userPrompt, setUserPrompt] = useState('');
   const [promptId, setPromptId] = useState<number | null>(null);
   const [datasetId, setDatasetId] = useState<number | null>(null);
+  const [userPrompt, setUserPrompt] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -55,12 +53,9 @@ export default function EvaluationDialog({
       promptId: number;
       datasetId: number;
     }) => {
-      // Use default values for validation method and priority since they're being removed from UI
       return await apiRequest('POST', '/api/evaluations', {
         ...data,
-        validationMethod: 'Comprehensive', // Default value
-        priority: 'Balanced', // Default value
-        userPrompt
+        userPrompt: ''
       });
     },
     onSuccess: (response: any) => {
@@ -123,16 +118,6 @@ export default function EvaluationDialog({
           setUserPrompt(evaluation.userPrompt);
         }
       } 
-      // Otherwise use the initial prompt if provided
-      else if (initialPrompt) {
-        setPromptId(initialPrompt.id);
-        // Set default dataset if available
-        if (datasets.length > 0) {
-          setDatasetId(datasets[0].id);
-        } else {
-          setDatasetId(null);
-        }
-      } 
       // If no initial prompt or evaluation, use defaults
       else {
         if (prompts.length > 0) {
@@ -148,7 +133,7 @@ export default function EvaluationDialog({
         }
       }
     }
-  }, [isOpen, datasets, prompts, initialPrompt, evaluation]);
+  }, [isOpen, datasets, prompts, evaluation]);
   
   // Update evaluation mutation
   const updateEvaluationMutation = useMutation({
@@ -161,8 +146,6 @@ export default function EvaluationDialog({
       return await apiRequest('PUT', `/api/evaluations/${data.id}`, {
         promptId: data.promptId,
         datasetId: data.datasetId,
-        validationMethod: 'Comprehensive', // Default value
-        priority: 'Balanced', // Default value
         userPrompt: data.userPrompt
       });
     },
@@ -213,12 +196,9 @@ export default function EvaluationDialog({
     // Otherwise create a new evaluation
     else {
       try {
-        // Use default values for validation method and priority
         const response = await apiRequest('POST', '/api/evaluations', {
           promptId,
           datasetId,
-          validationMethod: 'Comprehensive', // Default value
-          priority: 'Balanced', // Default value
           userPrompt
         });
         
@@ -341,11 +321,6 @@ export default function EvaluationDialog({
                 Please create a dataset before evaluating prompts.
               </p>
             )}
-          </div>
-          
-          {/* Note about default settings */}
-          <div className="text-sm text-gray-500 mt-4">
-            <p>Default validation will use comprehensive evaluation with balanced accuracy/speed settings.</p>
           </div>
           
           <DialogFooter className="gap-2 mt-4">

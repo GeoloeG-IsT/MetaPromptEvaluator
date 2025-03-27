@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { 
-  MetaPromptResponse, 
+  FinalPromptResponse, 
   EvaluationResponse,
   PromptEvaluationParams 
 } from "@/lib/types";
@@ -15,18 +15,17 @@ export const useOpenAI = () => {
   /**
    * Generate a meta prompt from an initial prompt
    */
-  const generateMetaPrompt = async (
-    initialPrompt: string,
-    complexity: string = "Standard",
-    tone: string = "Balanced"
-  ): Promise<MetaPromptResponse> => {
+  const generateFinalPrompt = async (
+    metaPrompt: string,
+    userPrompt: string,
+  ): Promise<FinalPromptResponse> => {
     setIsGenerating(true);
 
     try {
       const response = await apiRequest(
         "POST",
-        "/api/generate-meta-prompt",
-        { initialPrompt, complexity, tone }
+        "/api/generate-final-prompt",
+        { metaPrompt, userPrompt }
       );
       
       const data = await response.json();
@@ -35,7 +34,7 @@ export const useOpenAI = () => {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       toast({
         title: "Generation failed",
-        description: `Failed to generate meta prompt: ${errorMessage}`,
+        description: `Failed to generate final prompt: ${errorMessage}`,
         variant: "destructive",
       });
       throw error;
@@ -58,8 +57,7 @@ export const useOpenAI = () => {
         {
           promptId: params.promptId,
           datasetId: params.datasetId,
-          validationMethod: params.validationMethod,
-          priority: params.priority
+          userPrompt: params.userPrompt,
         }
       );
       
@@ -87,7 +85,7 @@ export const useOpenAI = () => {
   };
 
   return {
-    generateMetaPrompt,
+    generateFinalPrompt,
     evaluatePrompt,
     isGenerating,
     isEvaluating
