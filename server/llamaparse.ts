@@ -5,10 +5,10 @@ import * as https from 'https';
 import * as http from 'http';
 import { Readable } from 'stream';
 
-// LlamaParse API endpoint
-const LLAMAPARSE_API_URL = 'https://api.cloud.llamaindex.ai/api/llamaparse';
+// LlamaParse API endpoints (from https://docs.cloud.llamaindex.ai/llamaparse/getting_started/api)
+// The sync version directly returns the parsed content
 const LLAMAPARSE_HOST = 'api.cloud.llamaindex.ai';
-const LLAMAPARSE_PATH = '/api/llamaparse';
+const LLAMAPARSE_SYNC_PATH = '/api/llamaparse/sync';
 
 /**
  * Parse a PDF file using LlamaIndex Cloud's LlamaParse service
@@ -51,20 +51,21 @@ export async function parsePdfToMarkdown(
         // Create the multipart form data manually
         const postData = createMultipartForm(boundary, fileData, fileName);
         
-        // Set up the request options
+        // Set up the request options (using the sync endpoint as per documentation)
         const options = {
           hostname: LLAMAPARSE_HOST,
           port: 443,
-          path: LLAMAPARSE_PATH,
+          path: LLAMAPARSE_SYNC_PATH,
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': `multipart/form-data; boundary=${boundary}`,
-            'Content-Length': postData.length
+            'Content-Length': postData.length,
+            'Accept': 'application/json'
           }
         };
         
-        console.log(`Sending request to LlamaParse API: ${LLAMAPARSE_HOST}${LLAMAPARSE_PATH}`);
+        console.log(`Sending request to LlamaParse API: ${LLAMAPARSE_HOST}${LLAMAPARSE_SYNC_PATH}`);
         
         // Make the request
         const req = https.request(options, (res) => {
@@ -80,40 +81,44 @@ export async function parsePdfToMarkdown(
             // Check response status
             if (res.statusCode !== 200) {
               console.error(`LlamaParse API error: ${res.statusCode} - ${data}`);
-              return reject(new Error(`LlamaParse API error: ${res.statusCode} - ${res.statusMessage}`));
+              return reject(new Error(`LlamaParse API error: ${res.statusCode} - ${res.statusMessage || 'API Error'}`));
             }
             
             try {
-              // Parse the response
-              const result = JSON.parse(data);
-              console.log(`Successfully parsed PDF to Markdown, response received`);
+              // Parse the response according to LlamaIndex docs
+              const parseResult = JSON.parse(data);
+              console.log(`Successfully parsed PDF to text, response received with status: ${parseResult.status}`);
               
-              const markdownContent = result.markdown || '';
-              console.log(`Markdown length: ${markdownContent.length} characters`);
+              // According to docs, the result is in the 'content' field
+              const markdownContent = parseResult.content || '';
+              console.log(`Extracted content length: ${markdownContent.length} characters`);
+              console.log(`Content preview: ${markdownContent.substring(0, 100)}...`);
               
               // Save the markdown to file
               fs.writeFileSync(outputMarkdownPath, markdownContent);
               console.log(`Saved markdown content to: ${outputMarkdownPath}`);
               
               resolve(markdownContent);
-            } catch (parseError) {
-              reject(new Error(`Failed to parse API response: ${parseError.message}`));
+            } catch (parseError: any) {
+              console.error('Failed to parse API response:', parseError);
+              console.error('Raw response:', data.substring(0, 500) + '...');
+              reject(new Error(`Failed to parse API response: ${parseError?.message || 'Unknown error'}`));
             }
           });
         });
         
         // Handle request errors
-        req.on('error', (error) => {
+        req.on('error', (error: any) => {
           console.error('Error making request to LlamaParse API:', error);
-          reject(new Error(`Request to LlamaParse API failed: ${error.message}`));
+          reject(new Error(`Request to LlamaParse API failed: ${error?.message || 'Unknown error'}`));
         });
         
         // Send the request data
         req.write(postData);
         req.end();
         
-      } catch (error) {
-        reject(new Error(`Failed to make API request: ${error.message}`));
+      } catch (error: any) {
+        reject(new Error(`Failed to make API request: ${error?.message || 'Unknown error'}`));
       }
     });
     
@@ -144,10 +149,10 @@ function createMultipartForm(boundary: string, fileData: Buffer, fileName: strin
   formParts.push(fileData);
   formParts.push('\r\n');
   
-  // Add the result_type part
+  // Add the result_type parameter according to docs
   formParts.push(
     `--${boundary}\r\n` +
-    `Content-Disposition: form-data; name="result_type"\r\n\r\n` +
+    `Content-Disposition: form-data; name="output_format"\r\n\r\n` +
     `markdown\r\n`
   );
   

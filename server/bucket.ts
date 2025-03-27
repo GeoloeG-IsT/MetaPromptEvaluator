@@ -318,9 +318,10 @@ async function extractTextFromPdfBuffer(buffer: Buffer): Promise<string> {
     }
     
     return bestExtraction;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error extracting text from PDF:', error);
     return `PDF extraction error: Failed to extract text from the PDF document. 
+            Error details: ${error?.message || 'Unknown error'}.
             A specialized PDF parsing library is recommended for more reliable extraction.`;
   }
 }
@@ -586,9 +587,9 @@ class LocalBucketStorage {
             try {
               // Using our standard PDF text extraction algorithm as a fallback
               extractedText = await extractTextFromPdfBuffer(pdfBuffer);
-            } catch (innerError) {
+            } catch (innerError: any) {
               console.error("Fallback PDF extraction also failed:", innerError);
-              extractedText = "PDF extraction failed. Please try a different file format.";
+              extractedText = `PDF extraction failed: ${innerError?.message || 'Unknown error'}. Please try a different file format.`;
             }
           }
         }
