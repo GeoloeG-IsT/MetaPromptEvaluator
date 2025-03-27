@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import ResponseComparisonModal from './ResponseComparisonModal';
 
 interface EvaluationDetailProps {
   evaluationId: number;
@@ -38,6 +39,7 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [userPrompt, setUserPrompt] = useState('');
+  const [selectedResult, setSelectedResult] = useState<EvaluationResult | null>(null);
   // Fetch evaluation details
   const { 
     data: evaluation, 
@@ -446,7 +448,11 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
                 {results.map((result) => {
                   const datasetItem = getDatasetItem(result.datasetItemId);
                   return (
-                    <TableRow key={result.id}>
+                    <TableRow 
+                      key={result.id}
+                      className="cursor-pointer hover:bg-gray-50"
+                      onClick={() => setSelectedResult(result)}
+                    >
                       <TableCell className="font-medium">{result.datasetItemId}</TableCell>
                       <TableCell>
                         {datasetItem?.inputType === 'text' ? (
@@ -498,6 +504,20 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
           </div>
         )}
       </div>
+
+      {/* Response Comparison Modal */}
+      {selectedResult && (
+        <ResponseComparisonModal
+          isOpen={!!selectedResult}
+          onClose={() => setSelectedResult(null)}
+          generatedResponse={selectedResult.generatedResponse || ''}
+          expectedResponse={getDatasetItem(selectedResult.datasetItemId)?.validResponse || ''}
+          feedback={selectedResult.feedback || ''}
+          isValid={selectedResult.isValid || false}
+          score={selectedResult.score || 0}
+          title={`Evaluation Result #${selectedResult.id}`}
+        />
+      )}
     </div>
   );
 }
