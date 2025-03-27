@@ -65,6 +65,20 @@ export class DatabaseStorage implements IStorage {
   }
   
   async deletePrompt(id: number): Promise<boolean> {
+    // First, find all evaluations for this prompt
+    const promptEvaluations = await db.select().from(evaluations).where(eq(evaluations.promptId, id));
+    
+    // Delete all evaluation results for each evaluation
+    for (const evaluation of promptEvaluations) {
+      await db.delete(evaluationResults).where(eq(evaluationResults.evaluationId, evaluation.id));
+    }
+    
+    // Delete all evaluations for this prompt
+    if (promptEvaluations.length > 0) {
+      await db.delete(evaluations).where(eq(evaluations.promptId, id));
+    }
+    
+    // Finally, delete the prompt itself
     const result = await db.delete(prompts).where(eq(prompts.id, id)).returning();
     return result.length > 0;
   }

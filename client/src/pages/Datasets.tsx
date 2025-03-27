@@ -78,7 +78,7 @@ export default function Datasets() {
 
   // State for dataset details view
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
-  
+
   // State for editing dataset
   const [isEditDatasetDialogOpen, setIsEditDatasetDialogOpen] = useState(false);
   const [editingDataset, setEditingDataset] = useState<NewDatasetForm>({
@@ -188,18 +188,18 @@ export default function Datasets() {
       });
     },
   });
-  
+
   // Mutation to update a dataset
   const updateDatasetMutation = useMutation({
-    mutationFn: (data: { id: number; dataset: NewDatasetForm }) => 
+    mutationFn: (data: { id: number; dataset: NewDatasetForm }) =>
       apiRequest("PUT", `/api/datasets/${data.id}`, data.dataset),
     onSuccess: () => {
       // Close edit dialog
       setIsEditDatasetDialogOpen(false);
-      
+
       // Refetch datasets
       queryClient.invalidateQueries({ queryKey: ["/api/datasets"] });
-      
+
       // Update the selected dataset if it's the one being edited
       if (selectedDataset) {
         setSelectedDataset({
@@ -208,7 +208,7 @@ export default function Datasets() {
           description: editingDataset.description,
         });
       }
-      
+
       toast({
         title: "Dataset updated",
         description: "The dataset has been updated successfully.",
@@ -657,23 +657,23 @@ export default function Datasets() {
       deleteDatasetMutation.mutate(selectedDataset.id);
     }
   };
-  
+
   const openEditDatasetDialog = () => {
     if (!selectedDataset) return;
-    
+
     // Set the editing dataset with current values
     setEditingDataset({
       name: selectedDataset.name,
       description: selectedDataset.description || "",
     });
-    
+
     // Open the edit dialog
     setIsEditDatasetDialogOpen(true);
   };
-  
+
   const handleUpdateDataset = () => {
     if (!selectedDataset) return;
-    
+
     // Validate name field
     if (!editingDataset.name.trim()) {
       toast({
@@ -683,7 +683,7 @@ export default function Datasets() {
       });
       return;
     }
-    
+
     // Update the dataset
     updateDatasetMutation.mutate({
       id: selectedDataset.id,
@@ -726,7 +726,7 @@ export default function Datasets() {
                 Add Item
               </Button>
               <Button
-                variant="outline" 
+                variant="outline"
                 size="sm"
                 onClick={openEditDatasetDialog}
               >
@@ -796,7 +796,6 @@ export default function Datasets() {
                             </span>
                             <div className="text-sm">
                               <div className="font-medium">{item.inputPdf}</div>
-                              <div className="text-xs text-gray-500">ID: {item.inputPdf}</div>
                               <div className="flex mt-1">
                                 <Button
                                   variant="ghost"
@@ -1073,15 +1072,16 @@ export default function Datasets() {
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Edit Dataset Dialog */}
-      <Dialog open={isEditDatasetDialogOpen} onOpenChange={setIsEditDatasetDialogOpen}>
+      <Dialog
+        open={isEditDatasetDialogOpen}
+        onOpenChange={setIsEditDatasetDialogOpen}
+      >
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <DialogTitle>Edit Dataset</DialogTitle>
-            <DialogDescription>
-              Update the dataset details.
-            </DialogDescription>
+            <DialogDescription>Update the dataset details.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -1103,7 +1103,10 @@ export default function Datasets() {
                 id="edit-description"
                 value={editingDataset.description}
                 onChange={(e) =>
-                  setEditingDataset({ ...editingDataset, description: e.target.value })
+                  setEditingDataset({
+                    ...editingDataset,
+                    description: e.target.value,
+                  })
                 }
                 placeholder="Brief description of the dataset"
                 rows={3}
