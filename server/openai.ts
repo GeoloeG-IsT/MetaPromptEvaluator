@@ -243,22 +243,25 @@ export async function generatePdfResponse(finalPrompt: string, pdfFileId: string
     console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
     console.log("PDF File ID:", pdfFileId);
     
-    // First, retrieve the PDF from our bucket storage
+    // First, retrieve the PDF from our bucket storage directly from the filesystem
     console.log("Retrieving PDF data from bucket");
-    const response = await fetch(`/api/pdf/${pdfFileId}`);
     
-    if (!response.ok) {
-      throw new Error(`Failed to retrieve PDF data: ${response.statusText}`);
-    }
+    // Import required modules
+    const fs = require('fs').promises;
+    const path = require('path');
+    const bucketPath = path.join('.', 'MetaPromptEvaluatorBucket');
+    const filePath = path.join(bucketPath, `${pdfFileId}.pdf`);
     
-    const result = await response.json();
-    const pdfData = result.pdfData;
+    console.log(`Looking for PDF at path: ${filePath}`);
     
-    if (!pdfData) {
-      throw new Error("PDF data not found in response");
-    }
+    // Read the PDF file directly from the bucket
+    const pdfBuffer = await fs.readFile(filePath);
     
-    console.log(`Retrieved PDF data of length: ${pdfData.length} chars`);
+    // Convert to base64 data URL
+    const base64Data = pdfBuffer.toString('base64');
+    const pdfDataUrl = `data:application/pdf;base64,${base64Data}`;
+    
+    console.log(`Read PDF file successfully, size: ${pdfBuffer.length} bytes`);
     
     // Combine user prompt if provided
     const userContent = userPrompt 
@@ -283,7 +286,7 @@ export async function generatePdfResponse(finalPrompt: string, pdfFileId: string
             {
               type: "image_url",
               image_url: {
-                url: pdfData, // Send the actual PDF data URL (data:application/pdf;base64,...)
+                url: pdfDataUrl, // Send the actual PDF data URL (data:application/pdf;base64,...)
                 detail: "high"
               }
             }
