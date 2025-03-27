@@ -442,7 +442,7 @@ export default function Evaluations() {
       <EvaluationDialog
         isOpen={isEvaluationDialogOpen}
         onClose={closeDialog}
-        prompt={selectedPrompt}
+        selectedPrompt={selectedPrompt}
         evaluation={selectedEvaluation}
       />
     </div>

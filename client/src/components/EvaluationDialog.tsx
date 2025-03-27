@@ -14,13 +14,15 @@ import { useLocation } from 'wouter';
 interface EvaluationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedPrompt?: Prompt | undefined; // Add evaluation prop for editing existing evaluations
+  selectedPrompt?: Prompt | undefined;
+  evaluation?: Evaluation | undefined;
 }
 
 export default function EvaluationDialog({
   isOpen,
   onClose,
-  selectedPrompt // Add evaluation for editing existing evaluations
+  selectedPrompt,
+  evaluation
 }: EvaluationDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -106,11 +108,27 @@ export default function EvaluationDialog({
   // Reset form when dialog opens
   useEffect(() => {
     if (isOpen) {
-      // Set default values first
-      setUserPrompt('');
-      
-      // If no initial prompt or evaluation, use defaults
-      if (!selectedPrompt) {
+      // If editing an existing evaluation
+      if (evaluation) {
+        setPromptId(evaluation.promptId);
+        setDatasetId(evaluation.datasetId);
+        setUserPrompt(evaluation.userPrompt || '');
+      } 
+      // If a prompt is pre-selected
+      else if (selectedPrompt) {
+        setPromptId(selectedPrompt.id);
+        setUserPrompt('');
+        
+        if (datasets.length > 0) {
+          setDatasetId(datasets[0].id);
+        } else {
+          setDatasetId(null);
+        }
+      }
+      // Otherwise use defaults
+      else {
+        setUserPrompt('');
+        
         if (prompts.length > 0) {
           setPromptId(prompts[0].id);
         } else {
@@ -124,7 +142,7 @@ export default function EvaluationDialog({
         }
       }
     }
-  }, [isOpen, datasets, prompts, selectedPrompt]);
+  }, [isOpen, datasets, prompts, selectedPrompt, evaluation]);
   
   // Update evaluation mutation
   const updateEvaluationMutation = useMutation({
@@ -244,6 +262,9 @@ export default function EvaluationDialog({
           <DialogTitle>
             {evaluation ? 'Edit Evaluation' : 'Create New Evaluation'}
           </DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            {evaluation ? 'Modify the evaluation settings.' : 'Create a new evaluation for your meta prompt.'}
+          </p>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
