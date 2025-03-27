@@ -125,6 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         res.status(400).json({ message: "Invalid dataset data", errors: error.format() });
       } else {
+        console.error('Error creating dataset:', error);
         res.status(500).json({ message: "Failed to create dataset" });
       }
     }
@@ -176,22 +177,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to delete dataset" });
-    }
-  });
-
-  // Datasets
-  app.post("/api/datasets", async (req: Request, res: Response) => {
-    try {
-      const validatedData = insertDatasetSchema.parse(req.body);
-      const dataset = await storage.createDataset(validatedData);
-      res.status(201).json(dataset);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ message: "Invalid dataset data", errors: error.format() });
-      } else {
-        console.error('Error creating dataset:', error);
-        res.status(500).json({ message: "Failed to create dataset" });
-      }
     }
   });
 
