@@ -643,11 +643,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("No prompt ID or user prompt changes, skipping final prompt generation");
       }
       
+      // Log the update data before storing
+      console.log(`Final updateData being saved to database:`, {
+        ...updateData,
+        finalPrompt: updateData.finalPrompt ? updateData.finalPrompt.substring(0, 50) + "..." : null
+      });
+      
       // Update the evaluation
       const updatedEvaluation = await storage.updateEvaluation(id, updateData);
       
+      // Log the returned evaluation to verify finalPrompt is included
+      console.log(`Updated evaluation returned from database:`, {
+        id: updatedEvaluation?.id,
+        promptId: updatedEvaluation?.promptId,
+        userPrompt: updatedEvaluation?.userPrompt,
+        finalPrompt: updatedEvaluation?.finalPrompt ? updatedEvaluation.finalPrompt.substring(0, 50) + "..." : null
+      });
+      
       if (updatedEvaluation) {
-        res.json(updatedEvaluation);
+        // Make sure to explicitly return finalPrompt in response
+        res.json({
+          ...updatedEvaluation,
+          finalPrompt: updateData.finalPrompt || updatedEvaluation.finalPrompt
+        });
       } else {
         res.status(500).json({ message: "Failed to update evaluation" });
       }
