@@ -39,7 +39,9 @@ export default function Datasets() {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
+  const [isEditItemDialogOpen, setIsEditItemDialogOpen] = useState(false);
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
+  const [selectedDatasetItem, setSelectedDatasetItem] = useState<DatasetItem | null>(null);
   const [newDataset, setNewDataset] = useState({
     name: "",
     description: "",
@@ -164,6 +166,55 @@ export default function Datasets() {
     }
   });
   
+  // Update dataset item mutation
+  const updateDatasetItemMutation = useMutation({
+    mutationFn: async (data: {
+      id: number;
+      inputType: string;
+      inputText?: string;
+      inputImage?: string;
+      validResponse: string;
+    }) => {
+      console.log("Updating dataset item:", data);
+      // We need to use PUT here but the API doesn't have an update endpoint
+      // For now, we'll delete the old item and create a new one
+      await apiRequest("DELETE", `/api/dataset-items/${data.id}`);
+      const { id, ...itemData } = data;
+      const response = await apiRequest("POST", "/api/dataset-items", {
+        ...itemData,
+        datasetId: selectedDataset?.id
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Item updated",
+        description: "The dataset item has been updated successfully."
+      });
+      setIsEditItemDialogOpen(false);
+      setSelectedDatasetItem(null);
+      setNewDatasetItem({
+        inputType: "text",
+        inputText: "",
+        inputImage: "",
+        validResponse: "",
+      });
+      setUploadedImage(null);
+      if (selectedDataset) {
+        queryClient.invalidateQueries({ queryKey: ["/api/datasets", selectedDataset.id, "items"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/datasets"] });
+      }
+    },
+    onError: (error) => {
+      console.error("Error updating dataset item:", error);
+      toast({
+        title: "Update failed",
+        description: "There was an error updating the dataset item. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+  
   // Delete dataset item mutation
   const deleteDatasetItemMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -280,7 +331,88 @@ export default function Datasets() {
   };
   
   const addNewItem = () => {
+    // Reset the form data
+    setNewDatasetItem({
+      inputType: "text",
+      inputText: "",
+      inputImage: "",
+      validResponse: "",
+    });
+    setUploadedImage(null);
     setIsAddItemDialogOpen(true);
+  };
+  
+  const editDatasetItem = (item: DatasetItem) => {
+    // Set the selected item
+    setSelectedDatasetItem(item);
+    
+    // Set the form data with the current values
+    setNewDatasetItem({
+      inputType: item.inputType || "text",
+      inputText: item.inputText || "",
+      inputImage: item.inputImage || "",
+      validResponse: item.validResponse || "",
+    });
+    
+    // If there's an image, set it as uploaded image
+    if (item.inputImage) {
+      setUploadedImage(item.inputImage);
+    } else {
+      setUploadedImage(null);
+    }
+    
+    // Open the edit dialog (which uses the same form)
+    setIsEditItemDialogOpen(true);
+  };
+  
+  const handleUpdateDatasetItem = () => {
+    if (!selectedDatasetItem || !selectedDataset) {
+      toast({
+        title: "Error",
+        description: "No item selected for editing.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Check for required fields based on input type
+    if (newDatasetItem.inputType === "text" && !newDatasetItem.inputText) {
+      toast({
+        title: "Missing input text",
+        description: "Please provide input text.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (newDatasetItem.inputType === "image" && !newDatasetItem.inputImage && !uploadedImage) {
+      toast({
+        title: "Missing image",
+        description: "Please provide an image URL or upload an image.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!newDatasetItem.validResponse) {
+      toast({
+        title: "Missing valid response",
+        description: "Please provide the expected valid response.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Prepare the updated item data
+    const itemToUpdate = {
+      id: selectedDatasetItem.id,
+      ...newDatasetItem,
+      inputImage: uploadedImage || newDatasetItem.inputImage,
+      datasetId: selectedDataset.id,
+    };
+    
+    // Call the update mutation
+    updateDatasetItemMutation.mutate(itemToUpdate);
   };
   
   const handleDeleteItem = (id: number) => {
@@ -419,7 +551,11 @@ export default function Datasets() {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-1">
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => editDatasetItem(item)}
+                          >
                             <span className="material-icons text-sm">edit</span>
                           </Button>
                           <Button 
@@ -717,6 +853,178 @@ export default function Datasets() {
               }
             >
               {addDatasetItemMutation.isPending ? "Adding..." : "Add Item"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Dataset Item Dialog */}
+      <Dialog open={isEditItemDialogOpen} onOpenChange={setIsEditItemDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Dataset Item</DialogTitle>
+            <DialogDescription>
+              Edit the item in the "{selectedDataset?.name}" dataset.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <Tabs 
+              defaultValue="text" 
+              value={newDatasetItem.inputType}
+              onValueChange={(value) => setNewDatasetItem({ ...newDatasetItem, inputType: value })}
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="text">Text Input</TabsTrigger>
+                <TabsTrigger value="image">Image Input</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="text" className="pt-4">
+                <div className="space-y-2">
+                  <label htmlFor="editInputText" className="text-sm font-medium">
+                    Input Text
+                  </label>
+                  <Textarea
+                    id="editInputText"
+                    value={newDatasetItem.inputText}
+                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputText: e.target.value })}
+                    placeholder="Enter the input text to test with"
+                    rows={3}
+                  />
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="image" className="pt-4 space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="editInputImage" className="text-sm font-medium">
+                    Image URL
+                  </label>
+                  <Input
+                    id="editInputImage"
+                    value={newDatasetItem.inputImage}
+                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputImage: e.target.value })}
+                    placeholder="e.g., https://example.com/image.jpg"
+                  />
+                </div>
+                
+                <div 
+                  className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => document.getElementById('editImageUpload')?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.add('border-blue-500');
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove('border-blue-500');
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove('border-blue-500');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0 && files[0].type.startsWith('image/')) {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        if (event.target?.result) {
+                          setUploadedImage(event.target.result as string);
+                        }
+                      };
+                      reader.readAsDataURL(files[0]);
+                    }
+                  }}
+                >
+                  <input 
+                    type="file" 
+                    id="editImageUpload" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          if (event.target?.result) {
+                            setUploadedImage(event.target.result as string);
+                          }
+                        };
+                        reader.readAsDataURL(e.target.files[0]);
+                      }
+                    }} 
+                  />
+                  
+                  {uploadedImage ? (
+                    <div className="relative">
+                      <img 
+                        src={uploadedImage} 
+                        alt="Uploaded" 
+                        className="max-h-48 mx-auto"
+                        onError={() => {
+                          toast({
+                            title: "Image load error",
+                            description: "Could not load the image. Please try another.",
+                            variant: "destructive",
+                          });
+                          setUploadedImage(null);
+                        }}
+                      />
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="absolute top-2 right-2 h-8 w-8 p-0 rounded-full bg-white/80"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadedImage(null);
+                        }}
+                      >
+                        <span className="material-icons text-sm">close</span>
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="material-icons text-3xl text-gray-400">photo</span>
+                      <p className="mt-2 text-sm text-gray-500">
+                        Drag & drop an image here, or click to select
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        You can also paste images directly from your clipboard
+                      </p>
+                    </>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+            
+            <div className="space-y-2 pt-4">
+              <label htmlFor="editValidResponse" className="text-sm font-medium">
+                Valid Response
+              </label>
+              <Textarea
+                id="editValidResponse"
+                value={newDatasetItem.validResponse}
+                onChange={(e) => setNewDatasetItem({ ...newDatasetItem, validResponse: e.target.value })}
+                placeholder="The expected valid response for this input"
+                rows={4}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditItemDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateDatasetItem}
+              disabled={
+                updateDatasetItemMutation.isPending || 
+                (newDatasetItem.inputType === "text" && !newDatasetItem.inputText) ||
+                (newDatasetItem.inputType === "image" && !newDatasetItem.inputImage && !uploadedImage) ||
+                !newDatasetItem.validResponse
+              }
+            >
+              {updateDatasetItemMutation.isPending ? "Updating..." : "Update Item"}
             </Button>
           </DialogFooter>
         </DialogContent>

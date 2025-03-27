@@ -76,8 +76,11 @@ export default function Evaluations() {
   
   // Function to open the edit dialog
   const openEditDialog = (evaluation: Evaluation) => {
+    // Make sure we have the full evaluation data before editing
     setSelectedEvaluation(evaluation);
+    // Clear the selected prompt to avoid conflicts
     setSelectedPrompt(undefined);
+    // Show the evaluation dialog (same as for creating)
     setIsEvaluationDialogOpen(true);
   };
   

@@ -50,6 +50,7 @@ export default function EvaluationDialog({
   // Create evaluation
   const createEvaluationMutation = useMutation({
     mutationFn: async (data: PromptEvaluationParams) => {
+      console.log("Creating evaluation with data:", data);
       return await apiRequest('POST', '/api/evaluations', {
         ...data,
         validationMethod: 'Comprehensive', // Default value
@@ -58,12 +59,17 @@ export default function EvaluationDialog({
     },
     onSuccess: (response: any, variables: any) => {
       // Access id from response and userPrompt from variables
+      console.log("Evaluation created successfully, starting evaluation with:", {
+        id: response.id, 
+        userPrompt: variables.userPrompt
+      });
       startEvaluationMutation.mutate({ 
         id: response.id, 
         userPrompt: variables.userPrompt 
       });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error creating evaluation:", error);
       setIsLoading(false);
       toast({
         title: 'Evaluation failed',
@@ -149,13 +155,15 @@ export default function EvaluationDialog({
     mutationFn: async (data: {
       id: number;
     } & PromptEvaluationParams) => {
+      console.log("Updating evaluation via mutation:", data);
       return await apiRequest('PUT', `/api/evaluations/${data.id}`, {
         promptId: data.promptId,
         datasetId: data.datasetId,
         userPrompt: data.userPrompt
       });
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      console.log("Evaluation updated successfully:", response);
       setIsSaving(false);
       toast({
         title: 'Evaluation updated',
@@ -164,10 +172,13 @@ export default function EvaluationDialog({
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({queryKey: ['/api/evaluations']});
-      queryClient.invalidateQueries({queryKey: ['/api/evaluations', evaluation?.id]});
+      if (evaluation?.id) {
+        queryClient.invalidateQueries({queryKey: ['/api/evaluations', evaluation.id]});
+      }
       onClose();
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error updating evaluation:", error);
       setIsSaving(false);
       toast({
         title: 'Update failed',
@@ -190,25 +201,43 @@ export default function EvaluationDialog({
     
     setIsSaving(true);
     
+    // Ensure userPrompt is at least an empty string if undefined
+    const safeUserPrompt = userPrompt || '';
+    
     // If we're editing an existing evaluation
     if (evaluation) {
+      console.log("Updating evaluation:", {
+        id: evaluation.id,
+        promptId,
+        datasetId,
+        userPrompt: safeUserPrompt
+      });
+      
       updateEvaluationMutation.mutate({
         id: evaluation.id,
         promptId,
         datasetId,
-        userPrompt
+        userPrompt: safeUserPrompt
       });
     } 
     // Otherwise create a new evaluation
     else {
       try {
+        console.log("Creating evaluation (save only):", {
+          promptId,
+          datasetId,
+          userPrompt: safeUserPrompt
+        });
+        
         const response = await apiRequest('POST', '/api/evaluations', {
           promptId,
           datasetId,
-          userPrompt: userPrompt || '',
+          userPrompt: safeUserPrompt,
           validationMethod: 'Comprehensive', // Default value 
           priority: 'Balanced' // Default value
         });
+        
+        console.log("Evaluation saved successfully:", response);
         
         setIsSaving(false);
         toast({
@@ -220,6 +249,7 @@ export default function EvaluationDialog({
         queryClient.invalidateQueries({queryKey: ['/api/evaluations']});
         onClose();
       } catch (error) {
+        console.error("Error saving evaluation:", error);
         setIsSaving(false);
         toast({
           title: 'Save failed',
