@@ -313,10 +313,11 @@ export default function Datasets() {
       return;
     }
     
-    // If we have an uploaded image, use that instead of the URL
+    // If we have an uploaded image or PDF, use that instead of the URL/ID
     const itemToAdd = {
       ...newDatasetItem,
-      inputImage: uploadedImage || newDatasetItem.inputImage,
+      inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : null,
+      inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : null,
       datasetId: selectedDataset.id,
     };
     
@@ -350,10 +351,10 @@ export default function Datasets() {
     
     // Set the form data with the current values
     setNewDatasetItem({
-        inputPdf: "",
       inputType: item.inputType || "text",
       inputText: item.inputText || "",
       inputImage: item.inputImage || "",
+      inputPdf: item.inputPdf || "",
       validResponse: item.validResponse || "",
     });
     
@@ -362,6 +363,14 @@ export default function Datasets() {
       setUploadedImage(item.inputImage);
     } else {
       setUploadedImage(null);
+    }
+    
+    // If there's a PDF, set it as uploaded PDF
+    if (item.inputPdf) {
+      // We don't have the actual file content, just set a placeholder
+      setUploadedPdf("placeholder"); // This indicates we have a PDF without the actual content
+    } else {
+      setUploadedPdf(null);
     }
     
     // Open the edit dialog (which uses the same form)
@@ -396,6 +405,14 @@ export default function Datasets() {
       });
       return;
     }
+    if (newDatasetItem.inputType === "pdf" && !newDatasetItem.inputPdf && !uploadedPdf) {
+      toast({
+        title: "Missing PDF",
+        description: "Please provide a PDF ID or upload a PDF file.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (!newDatasetItem.validResponse) {
       toast({
@@ -410,7 +427,8 @@ export default function Datasets() {
     const itemToUpdate = {
       id: selectedDatasetItem.id,
       ...newDatasetItem,
-      inputImage: uploadedImage || newDatasetItem.inputImage,
+      inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : null,
+      inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : null,
       datasetId: selectedDataset.id,
     };
     
@@ -519,8 +537,21 @@ export default function Datasets() {
                   {datasetItems.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>
-                        <Badge variant={item.inputType === 'text' ? 'outline' : 'secondary'}>
-                          {item.inputType === 'text' ? 'Text' : 'Image'}
+                        <Badge 
+                          variant={
+                            item.inputType === 'text' 
+                              ? 'outline' 
+                              : item.inputType === 'image'
+                                ? 'secondary'
+                                : 'default'
+                          }
+                        >
+                          {item.inputType === 'text' 
+                            ? 'Text' 
+                            : item.inputType === 'image'
+                              ? 'Image'
+                              : 'PDF'
+                          }
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -528,7 +559,7 @@ export default function Datasets() {
                           <div className="max-w-md p-2 bg-gray-50 rounded text-sm overflow-hidden">
                             <div className="line-clamp-2">{item.inputText}</div>
                           </div>
-                        ) : item.inputImage ? (
+                        ) : item.inputType === 'image' ? (
                           <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
                             <img 
                               src={item.inputImage} 
@@ -543,9 +574,14 @@ export default function Datasets() {
                               }}
                             />
                           </div>
+                        ) : item.inputType === 'pdf' && item.inputPdf ? (
+                          <div className="p-2 bg-gray-50 rounded text-sm flex items-center gap-2">
+                            <span className="material-icons text-red-500">picture_as_pdf</span>
+                            <span className="font-medium truncate">{item.inputPdf}</span>
+                          </div>
                         ) : (
                           <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
-                            <span className="material-icons text-gray-400">image</span>
+                            <span className="material-icons text-gray-400">help_outline</span>
                           </div>
                         )}
                       </TableCell>
