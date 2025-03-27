@@ -304,6 +304,15 @@ export default function Datasets() {
       return;
     }
     
+    if (newDatasetItem.inputType === "pdf" && !newDatasetItem.inputPdf && !uploadedPdf) {
+      toast({
+        title: "Missing PDF",
+        description: "Please provide a PDF ID or upload a PDF file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (!newDatasetItem.validResponse) {
       toast({
         title: "Missing valid response",

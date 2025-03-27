@@ -91,10 +91,11 @@ export async function evaluatePrompt(
     console.log(`Input Type: ${item.inputType}`);
     console.log(`Has Input Image: ${!!item.inputImage}`);
     console.log(`Has Input Text: ${!!item.inputText}`);
+    console.log(`Has Input PDF: ${!!item.inputPdf}`);
     console.log(`Expected Response: ${item.validResponse}`);
     
     try {
-      // Generate a response using the processed meta prompt and the input (image or text)
+      // Generate a response using the processed meta prompt and the input (image, text, or PDF)
       let generatedResponse: string;
       if (item.inputType === "image" && item.inputImage) {
         console.log("Generating response for IMAGE input");
@@ -102,8 +103,11 @@ export async function evaluatePrompt(
       } else if (item.inputType === "text" && item.inputText) {
         console.log("Generating response for TEXT input");
         generatedResponse = await generateTextResponse(finalPrompt, item.inputText, userPrompt);
+      } else if (item.inputType === "pdf" && item.inputPdf) {
+        console.log("Generating response for PDF input");
+        generatedResponse = await generatePdfResponse(finalPrompt, item.inputPdf, userPrompt);
       } else {
-        console.log("WARNING: Dataset item has neither valid image nor text input");
+        console.log("WARNING: Dataset item has no valid input (image, text, or PDF)");
         generatedResponse = "Error: Dataset item has no valid input";
       }
       
@@ -226,6 +230,59 @@ export async function generateTextResponse(finalPrompt: string, inputText: strin
     console.error("Error generating text response:", error);
     console.error("Error details:", JSON.stringify(error, null, 2));
     return "Error: Unable to generate response for this text input. " + (error.message || "Unknown error");
+  }
+}
+
+/**
+ * Generate a response for a PDF input using the OpenAI API.
+ * This uses the processed meta prompt as the system message and the PDF as the user message.
+ */
+export async function generatePdfResponse(finalPrompt: string, pdfUrl: string, userPrompt?: string): Promise<string> {
+  try {
+    console.log("PDF RESPONSE GENERATION");
+    console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
+    console.log("PDF URL:", pdfUrl);
+    
+    // Combine user prompt and PDF URL if both are provided
+    const userContent = userPrompt 
+      ? `${userPrompt}\n\nAnalyze the PDF document attached. It is referenced as: ${pdfUrl}`
+      : `Please analyze this PDF document: ${pdfUrl}`;
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: finalPrompt
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: userContent
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: pdfUrl,
+                detail: "high"
+              }
+            }
+          ]
+        }
+      ],
+      temperature: 0.5,
+      max_tokens: 800
+    });
+
+    const result = response.choices[0].message.content || "Failed to generate response for PDF";
+    console.log("Generated response (preview):", result);
+    return result;
+  } catch (error: any) {
+    console.error("Error generating PDF response:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
+    return "Error: Unable to generate response for this PDF document. " + (error.message || "Unknown error");
   }
 }
 

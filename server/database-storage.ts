@@ -124,7 +124,8 @@ export class DatabaseStorage implements IStorage {
       ...item,
       inputType: item.inputType || 'image',
       inputText: item.inputText || null,
-      inputImage: item.inputImage || null
+      inputImage: item.inputImage || null,
+      inputPdf: item.inputPdf || null
     };
 
     // Start a transaction to create the item and update dataset item count

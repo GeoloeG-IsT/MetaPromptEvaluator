@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateFinalPrompt, evaluatePrompt, generateLLMResponse } from "./openai";
+import { bucketStorage } from "./bucket";
 import { z } from "zod";
 import { 
   insertPromptSchema, 
@@ -245,6 +246,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating dataset item:", error);
       res.status(500).json({ message: "Failed to update dataset item" });
+    }
+  });
+  
+  // PDF management endpoints
+  app.post("/api/pdf-upload", async (req: Request, res: Response) => {
+    try {
+      const { pdfData, fileId } = req.body;
+      
+      if (!pdfData || !fileId) {
+        return res.status(400).json({ message: "PDF data and file ID are required" });
+      }
+      
+      // Upload the PDF to the bucket
+      const uploadedFileId = await bucketStorage.uploadPdf(pdfData, fileId);
+      res.status(201).json({ fileId: uploadedFileId });
+    } catch (error) {
+      console.error("Error uploading PDF:", error);
+      res.status(500).json({ message: "Failed to upload PDF file" });
+    }
+  });
+  
+  app.get("/api/pdf/:fileId", async (req: Request, res: Response) => {
+    try {
+      const { fileId } = req.params;
+      
+      // Retrieve the PDF from the bucket
+      const pdfData = await bucketStorage.getPdf(fileId);
+      res.json({ pdfData });
+    } catch (error) {
+      console.error("Error retrieving PDF:", error);
+      res.status(500).json({ message: "Failed to retrieve PDF file" });
+    }
+  });
+  
+  app.delete("/api/pdf/:fileId", async (req: Request, res: Response) => {
+    try {
+      const { fileId } = req.params;
+      
+      // Delete the PDF from the bucket
+      await bucketStorage.deletePdf(fileId);
+      res.status(200).json({ message: "PDF deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting PDF:", error);
+      res.status(500).json({ message: "Failed to delete PDF file" });
     }
   });
 

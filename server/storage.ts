@@ -119,7 +119,12 @@ export class MemStorage implements IStorage {
   async createPrompt(insertPrompt: InsertPrompt): Promise<Prompt> {
     const id = this.currentPromptId++;
     const createdAt = new Date();
-    const prompt: Prompt = { ...insertPrompt, id, createdAt };
+    const prompt: Prompt = { 
+      ...insertPrompt, 
+      id, 
+      createdAt,
+      userId: insertPrompt.userId || null
+    };
     this.prompts.set(id, prompt);
     return prompt;
   }
@@ -153,7 +158,14 @@ export class MemStorage implements IStorage {
   async createDataset(insertDataset: InsertDataset): Promise<Dataset> {
     const id = this.currentDatasetId++;
     const createdAt = new Date();
-    const dataset: Dataset = { ...insertDataset, id, itemCount: 0, createdAt };
+    const dataset: Dataset = { 
+      ...insertDataset, 
+      id, 
+      itemCount: 0, 
+      createdAt,
+      userId: insertDataset.userId || null,
+      description: insertDataset.description || null
+    };
     this.datasets.set(id, dataset);
     return dataset;
   }
@@ -197,7 +209,8 @@ export class MemStorage implements IStorage {
       ...insertItem,
       inputType: insertItem.inputType || 'image',
       inputText: insertItem.inputText || null,
-      inputImage: insertItem.inputImage || null
+      inputImage: insertItem.inputImage || null,
+      inputPdf: insertItem.inputPdf || null
     };
     
     const item: DatasetItem = { ...defaultedItem, id };
@@ -230,7 +243,7 @@ export class MemStorage implements IStorage {
       // Update dataset item count
       if (success) {
         const dataset = this.datasets.get(item.datasetId);
-        if (dataset && dataset.itemCount > 0) {
+        if (dataset && dataset.itemCount !== null && dataset.itemCount > 0) {
           dataset.itemCount--;
           this.datasets.set(dataset.id, dataset);
         }
@@ -252,7 +265,9 @@ export class MemStorage implements IStorage {
       metrics: null, 
       status: 'pending', 
       createdAt,
-      completedAt: null 
+      completedAt: null,
+      userPrompt: insertEvaluation.userPrompt || null,
+      priority: insertEvaluation.priority || null
     };
     this.evaluations.set(id, evaluation);
     return evaluation;
@@ -292,7 +307,14 @@ export class MemStorage implements IStorage {
   // Evaluation result operations
   async createEvaluationResult(insertResult: InsertEvaluationResult): Promise<EvaluationResult> {
     const id = this.currentEvaluationResultId++;
-    const result: EvaluationResult = { ...insertResult, id };
+    const result: EvaluationResult = { 
+      ...insertResult, 
+      id,
+      score: insertResult.score || null,
+      generatedResponse: insertResult.generatedResponse || null,
+      isValid: insertResult.isValid || null,
+      feedback: insertResult.feedback || null
+    };
     this.evaluationResults.set(id, result);
     return result;
   }
