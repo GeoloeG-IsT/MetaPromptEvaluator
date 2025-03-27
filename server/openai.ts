@@ -237,18 +237,36 @@ export async function generateTextResponse(finalPrompt: string, inputText: strin
  * Generate a response for a PDF input using the OpenAI API.
  * This uses the processed meta prompt as the system message and the PDF as the user message.
  */
-export async function generatePdfResponse(finalPrompt: string, pdfUrl: string, userPrompt?: string): Promise<string> {
+export async function generatePdfResponse(finalPrompt: string, pdfFileId: string, userPrompt?: string): Promise<string> {
   try {
     console.log("PDF RESPONSE GENERATION");
     console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
-    console.log("PDF URL:", pdfUrl);
+    console.log("PDF File ID:", pdfFileId);
     
-    // Combine user prompt and PDF URL if both are provided
+    // First, retrieve the PDF from our bucket storage
+    console.log("Retrieving PDF data from bucket");
+    const response = await fetch(`/api/pdf/${pdfFileId}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to retrieve PDF data: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    const pdfData = result.pdfData;
+    
+    if (!pdfData) {
+      throw new Error("PDF data not found in response");
+    }
+    
+    console.log(`Retrieved PDF data of length: ${pdfData.length} chars`);
+    
+    // Combine user prompt if provided
     const userContent = userPrompt 
-      ? `${userPrompt}\n\nAnalyze the PDF document attached. It is referenced as: ${pdfUrl}`
-      : `Please analyze this PDF document: ${pdfUrl}`;
+      ? `${userPrompt}\n\nPlease analyze this PDF document.`
+      : `Please analyze this PDF document.`;
     
-    const response = await openai.chat.completions.create({
+    // Call the OpenAI API with the PDF data
+    const openaiResponse = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
@@ -265,7 +283,7 @@ export async function generatePdfResponse(finalPrompt: string, pdfUrl: string, u
             {
               type: "image_url",
               image_url: {
-                url: pdfUrl,
+                url: pdfData, // Send the actual PDF data URL (data:application/pdf;base64,...)
                 detail: "high"
               }
             }
@@ -276,13 +294,13 @@ export async function generatePdfResponse(finalPrompt: string, pdfUrl: string, u
       max_tokens: 800
     });
 
-    const result = response.choices[0].message.content || "Failed to generate response for PDF";
-    console.log("Generated response (preview):", result);
-    return result;
+    const generatedResult = openaiResponse.choices[0].message.content || "Failed to generate response for PDF";
+    console.log("Generated response (preview):", generatedResult.substring(0, 100) + "...");
+    return generatedResult;
   } catch (error: any) {
     console.error("Error generating PDF response:", error);
     console.error("Error details:", JSON.stringify(error, null, 2));
-    return "Error: Unable to generate response for this PDF document. " + (error.message || "Unknown error");
+    return "Error: Unable to generate response for this PDF document. " + (error.status ? error.status + " " : "") + (error.message || "Unknown error");
   }
 }
 
