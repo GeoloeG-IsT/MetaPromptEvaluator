@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Evaluation, EvaluationResult, Prompt, Dataset, DatasetItem } from '@shared/schema';
 import { EvaluationMetrics } from '@/lib/types';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
@@ -246,7 +247,13 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
           {!isEditing ? (
             <>
               {onEdit && (
-                <Button variant="outline" onClick={() => onEdit(evaluation)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setUserPrompt(evaluation.userPrompt || '');
+                    setIsEditing(true);
+                  }}
+                >
                   <span className="material-icons text-sm mr-1">edit</span>
                   Edit
                 </Button>
@@ -312,6 +319,19 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
             <div className="space-y-2">
               {isEditing ? (
                 <>
+                  <div className="space-y-2">
+                    <Label htmlFor="userPrompt">User Prompt</Label>
+                    <Textarea
+                      id="userPrompt"
+                      value={userPrompt}
+                      onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setUserPrompt(e.target.value)}
+                      placeholder="Enter the user prompt that will replace the placeholder"
+                      className="min-h-[80px]"
+                    />
+                    <p className="text-xs text-gray-500">
+                      This will be used to replace placeholders in the meta prompt
+                    </p>
+                  </div>
                 </>
               ) : (
                 <>

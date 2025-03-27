@@ -360,6 +360,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/evaluations/:id/start", async (req: Request, res: Response) => {
     try {
       const evaluationId = parseInt(req.params.id);
+      // Get userPrompt from request body if provided
+      const { userPrompt } = req.body;
+      
+      // Fetch the evaluation
       const evaluation = await storage.getEvaluation(evaluationId);
       
       if (!evaluation) {
@@ -371,13 +375,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Start evaluation in background
-      storage.updateEvaluation(evaluationId, { status: 'in_progress' });
+      // If userPrompt is provided in the request, update it
+      if (userPrompt !== undefined) {
+        await storage.updateEvaluation(evaluationId, { 
+          status: 'in_progress',
+          userPrompt
+        });
+      } else {
+        await storage.updateEvaluation(evaluationId, { status: 'in_progress' });
+      }
       
       // Perform the evaluation (this would be async in a real app)
       setTimeout(async () => {
         try {
-          const prompt = await storage.getPrompt(evaluation.promptId);
-          const datasetItems = await storage.getDatasetItems(evaluation.datasetId);
+          // Fetch the evaluation again to get the updated userPrompt
+          const updatedEvaluation = await storage.getEvaluation(evaluationId);
+          
+          if (!updatedEvaluation) {
+            console.error(`Evaluation with ID ${evaluationId} not found during processing`);
+            return;
+          }
+          
+          const prompt = await storage.getPrompt(updatedEvaluation.promptId);
+          const datasetItems = await storage.getDatasetItems(updatedEvaluation.datasetId);
           
           if (!prompt || !prompt.metaPrompt) {
             await storage.updateEvaluation(evaluationId, { 
@@ -390,12 +410,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           console.log(`Starting evaluation for prompt ID ${prompt.id} with ${datasetItems.length} dataset items`);
           console.log(`Using meta prompt: ${prompt.metaPrompt?.substring(0, 100)}...`);
-          console.log(`User prompt: ${evaluation.userPrompt || "(None provided)"}`);
+          console.log(`User prompt: ${updatedEvaluation.userPrompt || "(None provided)"}`);
           
           const results = await evaluatePrompt(
             prompt.metaPrompt || "", 
             datasetItems, 
-            evaluation.userPrompt // Pass userPrompt to evaluatePrompt function
+            updatedEvaluation.userPrompt || "" // Pass userPrompt to evaluatePrompt function with empty string fallback
           );
           
           // Store results and update evaluation
