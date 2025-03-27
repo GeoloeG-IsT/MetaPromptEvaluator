@@ -162,13 +162,18 @@ export default function EvaluationDialog({
         userPrompt: data.userPrompt
       });
     },
-    onSuccess: (response) => {
-      console.log("Evaluation updated successfully:", response);
+    onSuccess: (updatedEvaluation) => {
+      console.log("Evaluation updated successfully:", updatedEvaluation);
       setIsSaving(false);
       toast({
         title: 'Evaluation updated',
         description: 'The evaluation has been updated successfully.'
       });
+      
+      // Directly update the cache for immediate UI update
+      if (evaluation?.id) {
+        queryClient.setQueryData(['/api/evaluations', evaluation.id], updatedEvaluation);
+      }
       
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({queryKey: ['/api/evaluations']});

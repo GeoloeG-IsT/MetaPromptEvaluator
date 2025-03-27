@@ -132,16 +132,27 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
   // Update evaluation mutation
   const updateEvaluationMutation = useMutation({
     mutationFn: async (data: Partial<Evaluation>) => {
+      console.log("Updating evaluation:", { id: evaluationId, ...data });
+      console.log("Updating evaluation via mutation:", { id: evaluationId, ...data });
       return await apiRequest('PUT', `/api/evaluations/${evaluationId}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (updatedEvaluation: Evaluation) => {
       toast({
         title: 'Evaluation updated',
         description: 'The evaluation has been updated successfully.',
       });
-      setIsEditing(false);
+      
+      // Important: Set the evaluation data directly to ensure the UI updates
+      // This ensures we don't have to wait for the query invalidation to complete
+      queryClient.setQueryData(['/api/evaluations', evaluationId], updatedEvaluation);
+      
+      console.log("Evaluation updated successfully:", updatedEvaluation);
+      
+      // Also invalidate the queries to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['/api/evaluations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/evaluations', evaluationId] });
+      
+      setIsEditing(false);
     },
     onError: () => {
       toast({
