@@ -499,10 +499,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Prompt not found" });
       }
       
-      // Compute the final prompt using the meta prompt and user prompt
-      const finalPrompt = validatedData.userPrompt ? 
-        prompt.metaPrompt.replace(/{{user_prompt}}/g, validatedData.userPrompt) : 
-        prompt.metaPrompt;
+      // Use the generateFinalPrompt function to process the prompt through OpenAI
+      let finalPrompt;
+      try {
+        finalPrompt = await generateFinalPrompt(
+          prompt.metaPrompt, 
+          validatedData.userPrompt || ""
+        );
+        console.log("Generated final prompt:", finalPrompt.substring(0, 100) + "...");
+      } catch (promptError) {
+        console.error("Error generating final prompt:", promptError);
+        finalPrompt = validatedData.userPrompt ? 
+          prompt.metaPrompt.replace(/{{user_prompt}}/g, validatedData.userPrompt) : 
+          prompt.metaPrompt;
+        console.log("Falling back to simple replacement for final prompt");
+      }
         
       // Add the final prompt to the evaluation data
       const evaluationData = {
@@ -589,12 +600,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get the meta prompt
         const prompt = await storage.getPrompt(targetPromptId);
         if (prompt) {
-          // Compute the final prompt
-          const finalPrompt = targetUserPrompt ? 
-            prompt.metaPrompt.replace(/{{user_prompt}}/g, targetUserPrompt) : 
-            prompt.metaPrompt;
-            
-          updateData.finalPrompt = finalPrompt;
+          // Use the generateFinalPrompt function to process the prompt through OpenAI
+          try {
+            const finalPrompt = await generateFinalPrompt(
+              prompt.metaPrompt, 
+              targetUserPrompt || ""
+            );
+            console.log("Generated final prompt for update:", finalPrompt.substring(0, 100) + "...");
+            updateData.finalPrompt = finalPrompt;
+          } catch (promptError) {
+            console.error("Error generating final prompt for update:", promptError);
+            // Fall back to simple placeholder replacement
+            const finalPrompt = targetUserPrompt ? 
+              prompt.metaPrompt.replace(/{{user_prompt}}/g, targetUserPrompt) : 
+              prompt.metaPrompt;
+            console.log("Falling back to simple replacement for final prompt in update");
+            updateData.finalPrompt = finalPrompt;
+          }
         }
       }
       
@@ -659,13 +681,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Allow re-running completed or failed evaluations
       
       // Start evaluation in background
-      // If userPrompt is provided in the request, update it
+      // If userPrompt is provided in the request, update it and regenerate final prompt
       if (userPrompt !== undefined) {
-        await storage.updateEvaluation(evaluationId, { 
-          status: 'in_progress',
-          userPrompt
-        });
+        const prompt = await storage.getPrompt(evaluation.promptId);
+        
+        if (prompt) {
+          try {
+            // Generate a new final prompt with OpenAI
+            const finalPrompt = await generateFinalPrompt(
+              prompt.metaPrompt,
+              userPrompt
+            );
+            
+            console.log("Generated new final prompt for evaluation start:", finalPrompt.substring(0, 100) + "...");
+            
+            // Update the evaluation with new user prompt and final prompt
+            await storage.updateEvaluation(evaluationId, { 
+              status: 'in_progress',
+              userPrompt,
+              finalPrompt
+            });
+          } catch (promptError) {
+            console.error("Error generating final prompt during evaluation start:", promptError);
+            // Fall back to simple replacement
+            const finalPrompt = prompt.metaPrompt.replace(/{{user_prompt}}/g, userPrompt);
+            
+            // Update with simple replacement
+            await storage.updateEvaluation(evaluationId, { 
+              status: 'in_progress',
+              userPrompt,
+              finalPrompt
+            });
+          }
+        } else {
+          // Just update the user prompt if we can't find the prompt
+          await storage.updateEvaluation(evaluationId, { 
+            status: 'in_progress',
+            userPrompt
+          });
+        }
       } else {
+        // No user prompt change, just update the status
         await storage.updateEvaluation(evaluationId, { status: 'in_progress' });
       }
       
@@ -708,14 +764,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Use finalPrompt if available, otherwise generate it
-          const finalPrompt = updatedEvaluation.finalPrompt ||
-            (updatedEvaluation.userPrompt ? 
-              prompt.metaPrompt.replace(/{{user_prompt}}/g, updatedEvaluation.userPrompt) : 
-              prompt.metaPrompt);
+          let finalPrompt;
+          
+          if (updatedEvaluation.finalPrompt) {
+            finalPrompt = updatedEvaluation.finalPrompt;
+            console.log("Using existing final prompt:", finalPrompt.substring(0, 100) + "...");
+          } else {
+            // Generate a final prompt using the OpenAI API
+            try {
+              finalPrompt = await generateFinalPrompt(
+                prompt.metaPrompt, 
+                updatedEvaluation.userPrompt || ""
+              );
+              console.log("Generated final prompt for evaluation:", finalPrompt.substring(0, 100) + "...");
               
-          // If finalPrompt wasn't already saved, update it now
-          if (!updatedEvaluation.finalPrompt) {
-            await storage.updateEvaluation(evaluationId, { finalPrompt });
+              // Update the evaluation with the final prompt
+              await storage.updateEvaluation(evaluationId, { finalPrompt });
+            } catch (promptError) {
+              console.error("Error generating final prompt during evaluation:", promptError);
+              // Fall back to simple replacement
+              finalPrompt = updatedEvaluation.userPrompt ? 
+                prompt.metaPrompt.replace(/{{user_prompt}}/g, updatedEvaluation.userPrompt) : 
+                prompt.metaPrompt;
+              console.log("Falling back to simple replacement for final prompt in evaluation");
+              await storage.updateEvaluation(evaluationId, { finalPrompt });
+            }
           }
               
           const results = await evaluatePrompt(

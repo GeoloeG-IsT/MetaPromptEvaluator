@@ -59,7 +59,7 @@ export async function generateLLMResponse(
           content: "Based on the instructions above, generate a system prompt that can be used directly with an LLM.",
         }
       ],
-      temperature: 0.2,
+      temperature: 0.0,
       max_tokens: 2000,
     });
 
