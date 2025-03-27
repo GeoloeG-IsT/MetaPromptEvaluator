@@ -108,6 +108,16 @@ async function uploadFileToLlamaIndex(
       formParts.push(fileData);
       formParts.push("\r\n");
 
+      // Add the language part (set to 'de' for German)
+      formParts.push(
+        `--${boundary}\r\n` +
+          `Content-Disposition: form-data; name="language"\r\n\r\n`,
+      );
+      formParts.push("de");
+      formParts.push("\r\n");
+      
+      console.log("Setting document language to 'de' (German) for LlamaIndex parsing");
+
       // Add the closing boundary
       formParts.push(`--${boundary}--\r\n`);
 
