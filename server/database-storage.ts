@@ -261,6 +261,16 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(evaluationResults).where(eq(evaluationResults.evaluationId, evaluationId));
   }
   
+  async deleteEvaluationResult(id: number): Promise<boolean> {
+    try {
+      const result = await db.delete(evaluationResults).where(eq(evaluationResults.id, id));
+      return true; // If no error was thrown, consider it successful
+    } catch (error) {
+      console.error(`Failed to delete evaluation result ${id}:`, error);
+      return false;
+    }
+  }
+  
   // Dashboard stats
   async getDashboardStats(): Promise<DashboardStats> {
     // Total prompts count

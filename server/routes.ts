@@ -262,12 +262,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { pdfData, fileId } = req.body;
       
-      if (!pdfData || !fileId) {
-        return res.status(400).json({ message: "PDF data and file ID are required" });
+      if (!pdfData) {
+        console.error("PDF Upload Error: No PDF data provided");
+        return res.status(400).json({ message: "PDF data is required" });
       }
       
+      console.log("Received PDF upload request with file ID:", fileId || "(will be generated)");
+      console.log("PDF data length:", pdfData.length, "characters");
+      
+      // Generate a file ID if not provided
+      const id = fileId || `invoice_${Math.random().toString(36).substring(2, 15)}`;
+      
       // Upload the PDF to the bucket
-      const uploadedFileId = await bucketStorage.uploadPdf(pdfData, fileId);
+      const uploadedFileId = await bucketStorage.uploadPdf(pdfData, id);
+      console.log("PDF uploaded successfully with ID:", uploadedFileId);
+      
       res.status(201).json({ fileId: uploadedFileId });
     } catch (error) {
       console.error("Error uploading PDF:", error);
@@ -420,10 +429,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // First delete all evaluation results
       const results = await storage.getEvaluationResults(id);
+      console.log(`Deleting ${results.length} results for evaluation ID ${id}`);
+      
       for (const result of results) {
-        // Assuming we need to implement a function to delete evaluation results
-        // For now, we don't have this function directly in storage
-        // This would be implemented in a real application
+        await storage.deleteEvaluationResult(result.id);
       }
       
       // Then delete the evaluation itself
@@ -435,6 +444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(404).json({ message: "Evaluation not found" });
       }
     } catch (error) {
+      console.error("Error deleting evaluation:", error);
       res.status(500).json({ message: "Failed to delete evaluation" });
     }
   });
@@ -496,12 +506,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Using meta prompt: ${prompt.metaPrompt?.substring(0, 100)}...`);
           console.log(`User prompt: ${updatedEvaluation.userPrompt || "(None provided)"}`);
           
-          // Get existing results and clear them if re-running a completed evaluation
+          // Get existing results and delete them if re-running an evaluation
           const existingResults = await storage.getEvaluationResults(evaluationId);
           if (existingResults && existingResults.length > 0) {
-            console.log(`Clearing ${existingResults.length} existing results for evaluation ID ${evaluationId}`);
-            // In a real implementation we would delete existing results here
-            // For now, we'll just continue and create new results
+            console.log(`Deleting ${existingResults.length} existing results for evaluation ID ${evaluationId}`);
+            
+            // Delete each existing result
+            for (const result of existingResults) {
+              await storage.deleteEvaluationResult(result.id);
+            }
           }
           
           const results = await evaluatePrompt(

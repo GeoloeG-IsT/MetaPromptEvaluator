@@ -44,6 +44,7 @@ export interface IStorage {
   // Evaluation result operations
   createEvaluationResult(result: InsertEvaluationResult): Promise<EvaluationResult>;
   getEvaluationResults(evaluationId: number): Promise<EvaluationResult[]>;
+  deleteEvaluationResult(id: number): Promise<boolean>;
 
   // Dashboard stats
   getDashboardStats(): Promise<DashboardStats>;
@@ -322,6 +323,10 @@ export class MemStorage implements IStorage {
   async getEvaluationResults(evaluationId: number): Promise<EvaluationResult[]> {
     return Array.from(this.evaluationResults.values())
       .filter(result => result.evaluationId === evaluationId);
+  }
+  
+  async deleteEvaluationResult(id: number): Promise<boolean> {
+    return this.evaluationResults.delete(id);
   }
 
   // Dashboard stats
