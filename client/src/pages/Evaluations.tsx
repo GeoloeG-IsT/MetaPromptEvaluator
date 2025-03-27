@@ -61,6 +61,30 @@ export default function Evaluations() {
     },
   });
 
+  // Run evaluation mutation
+  const runEvaluationMutation = useMutation({
+    mutationFn: async (data: { id: number, userPrompt: string }) => {
+      return await apiRequest('POST', `/api/evaluations/${data.id}/start`, { 
+        userPrompt: data.userPrompt 
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Evaluation started',
+        description: 'The evaluation is now being processed. Results will update automatically.',
+      });
+      // Invalidate the evaluations list query to show updated status
+      queryClient.invalidateQueries({ queryKey: ['/api/evaluations'] });
+    },
+    onError: () => {
+      toast({
+        title: 'Start failed',
+        description: 'There was an error starting the evaluation. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Group evaluations by status
   const completed = evaluations?.filter(e => e.status === 'completed') || [];
   const inProgress = evaluations?.filter(e => e.status === 'in_progress' || e.status === 'pending') || [];
@@ -197,14 +221,29 @@ export default function Evaluations() {
                         </div>
                         <div className="flex space-x-2">
                           {evaluation.status !== 'in_progress' && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => openEditDialog(evaluation)}
-                            >
-                              <span className="material-icons text-sm mr-1">edit</span>
-                              Edit
-                            </Button>
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => openEditDialog(evaluation)}
+                              >
+                                <span className="material-icons text-sm mr-1">edit</span>
+                                Edit
+                              </Button>
+                              <Button 
+                                variant={evaluation.status === 'completed' ? "outline" : "default"}
+                                size="sm" 
+                                onClick={() => runEvaluationMutation.mutate({
+                                  id: evaluation.id,
+                                  userPrompt: evaluation.userPrompt || ''
+                                })}
+                                disabled={runEvaluationMutation.isPending}
+                              >
+                                <span className="material-icons text-sm mr-1">play_arrow</span>
+                                {runEvaluationMutation.isPending ? 'Running...' : 
+                                 (evaluation.status === 'completed' ? 'Re-run' : 'Run')}
+                              </Button>
+                            </>
                           )}
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
@@ -294,14 +333,29 @@ export default function Evaluations() {
                       </div>
                       <div className="flex space-x-2">
                         {evaluation.status !== 'in_progress' && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => openEditDialog(evaluation)}
-                          >
-                            <span className="material-icons text-sm mr-1">edit</span>
-                            Edit
-                          </Button>
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => openEditDialog(evaluation)}
+                            >
+                              <span className="material-icons text-sm mr-1">edit</span>
+                              Edit
+                            </Button>
+                            <Button 
+                              variant={evaluation.status === 'completed' ? "outline" : "default"}
+                              size="sm" 
+                              onClick={() => runEvaluationMutation.mutate({
+                                id: evaluation.id,
+                                userPrompt: evaluation.userPrompt || ''
+                              })}
+                              disabled={runEvaluationMutation.isPending}
+                            >
+                              <span className="material-icons text-sm mr-1">play_arrow</span>
+                              {runEvaluationMutation.isPending ? 'Running...' : 
+                               (evaluation.status === 'completed' ? 'Re-run' : 'Run')}
+                            </Button>
+                          </>
                         )}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -428,6 +482,19 @@ export default function Evaluations() {
                     </div>
                     
                     <div className="flex justify-end mt-4">
+                      <Button 
+                        variant="default"
+                        size="sm" 
+                        onClick={() => runEvaluationMutation.mutate({
+                          id: evaluation.id,
+                          userPrompt: evaluation.userPrompt || ''
+                        })}
+                        disabled={runEvaluationMutation.isPending}
+                        className="mr-2"
+                      >
+                        <span className="material-icons text-sm mr-1">play_arrow</span>
+                        {runEvaluationMutation.isPending ? 'Running...' : 'Run Again'}
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => viewEvaluation(evaluation.id)}>
                         <span className="material-icons text-sm mr-1">visibility</span>
                         View Details

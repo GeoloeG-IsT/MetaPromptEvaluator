@@ -177,14 +177,24 @@ export default function EvaluationDialog({
       }
       onClose();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error updating evaluation:", error);
       setIsSaving(false);
-      toast({
-        title: 'Update failed',
-        description: 'There was an error updating the evaluation. Please try again.',
-        variant: 'destructive'
-      });
+      
+      // Check for the specific error message about already run evaluations
+      if (error?.response?.data?.message?.includes("Cannot update evaluations")) {
+        toast({
+          title: 'Cannot edit this evaluation',
+          description: 'Evaluations that have already been run cannot be edited. Please create a new evaluation instead.',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Update failed',
+          description: 'There was an error updating the evaluation. Please try again.',
+          variant: 'destructive'
+        });
+      }
     }
   });
 
@@ -285,6 +295,21 @@ export default function EvaluationDialog({
     });
   };
   
+  // Check if the evaluation is editable
+  const isEvaluationEditable = !evaluation || 
+    evaluation.status === 'pending' || 
+    evaluation.status === 'failed';
+  
+  // Display a warning if the evaluation is not editable
+  const alreadyRunWarning = evaluation && !isEvaluationEditable && (
+    <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-4">
+      <p className="text-amber-800 text-sm">
+        <span className="material-icons text-sm mr-1 align-middle">warning</span>
+        This evaluation has already been run and cannot be edited. You can view the details or create a new evaluation.
+      </p>
+    </div>
+  );
+  
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[600px]">
@@ -297,6 +322,8 @@ export default function EvaluationDialog({
           </p>
         </DialogHeader>
         
+        {alreadyRunWarning}
+        
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
           {/* Meta prompt selection */}
           <div className="space-y-2">
@@ -304,6 +331,7 @@ export default function EvaluationDialog({
             <Select
               value={promptId?.toString() || ''}
               onValueChange={(value) => setPromptId(parseInt(value))}
+              disabled={!isEvaluationEditable}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a meta prompt" />
@@ -336,6 +364,7 @@ export default function EvaluationDialog({
               onChange={(e) => setUserPrompt(e.target.value)}
               placeholder="Enter the user prompt that will replace the placeholder"
               className="min-h-[80px]"
+              disabled={!isEvaluationEditable}
             />
           </div>
           
@@ -345,6 +374,7 @@ export default function EvaluationDialog({
             <Select
               value={datasetId?.toString() || ''}
               onValueChange={(value) => setDatasetId(parseInt(value))}
+              disabled={!isEvaluationEditable}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select a dataset" />
@@ -375,22 +405,26 @@ export default function EvaluationDialog({
               onClick={onClose}
               disabled={isLoading || isSaving}
             >
-              Cancel
+              {evaluation && !isEvaluationEditable ? 'Close' : 'Cancel'}
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleSaveEvaluation}
-              disabled={isLoading || isSaving || !promptId || !datasetId}
-            >
-              {isSaving ? 'Saving...' : 'Save'}
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || isSaving || !promptId || !datasetId}
-            >
-              {isLoading ? 'Starting Evaluation...' : 'Run Evaluation'}
-            </Button>
+            {isEvaluationEditable && (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleSaveEvaluation}
+                  disabled={isLoading || isSaving || !promptId || !datasetId}
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isLoading || isSaving || !promptId || !datasetId}
+                >
+                  {isLoading ? 'Starting Evaluation...' : 'Run Evaluation'}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1,7 +1,5 @@
 import OpenAI from "openai";
 import { DatasetItem } from "@shared/schema";
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import { bucketStorage } from './bucket';
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
@@ -31,6 +29,7 @@ export async function generateLLMResponse(
     let result = response.choices[0].message.content || "Failed to generate response";
     
     // Remove any "json/" prefix that might be present in the response
+    result = result.replace(/^```\//, "");
     result = result.replace(/^json\//, '');
     
     return result;
