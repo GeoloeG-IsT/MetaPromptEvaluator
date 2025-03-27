@@ -277,7 +277,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uploadedFileId = await bucketStorage.uploadPdf(pdfData, id);
       console.log("PDF uploaded successfully with ID:", uploadedFileId);
       
-      res.status(201).json({ fileId: uploadedFileId });
+      // Try to extract text from the PDF to check if it's valid and preprocessable
+      try {
+        console.log("Attempting to extract text from the uploaded PDF to verify it's preprocessable");
+        const extractedText = await bucketStorage.extractTextFromPdf(uploadedFileId);
+        const textPreview = extractedText.substring(0, 100) + (extractedText.length > 100 ? '...' : '');
+        console.log(`Successfully extracted text (preview): ${textPreview}`);
+        
+        // Return both the file ID and a preview of the extracted text
+        res.status(201).json({
+          fileId: uploadedFileId,
+          textPreview: textPreview,
+          extractionSuccess: true
+        });
+      } catch (extractError: any) {
+        console.error("Warning: Failed to extract text from PDF:", extractError?.message || 'Unknown error');
+        // Still return success for the upload, but indicate that extraction failed
+        res.status(201).json({
+          fileId: uploadedFileId,
+          extractionSuccess: false,
+          extractionError: extractError?.message || 'Failed to extract text from PDF'
+        });
+      }
     } catch (error) {
       console.error("Error uploading PDF:", error);
       res.status(500).json({ message: "Failed to upload PDF file" });

@@ -13,12 +13,22 @@ export function generatePdfId(): string {
 }
 
 /**
+ * Response from PDF upload API
+ */
+export interface PdfUploadResponse {
+  fileId: string;
+  textPreview?: string;
+  extractionSuccess?: boolean;
+  extractionError?: string;
+}
+
+/**
  * Upload a PDF file to the server
  * @param pdfData Base64 encoded PDF data
  * @param fileId Optional file ID (if not provided, one will be generated)
- * @returns The file ID of the uploaded PDF
+ * @returns The PDF upload response including fileId and text extraction status
  */
-export async function uploadPdf(pdfData: string, fileId: string = generatePdfId()): Promise<string> {
+export async function uploadPdf(pdfData: string, fileId: string = generatePdfId()): Promise<PdfUploadResponse> {
   try {
     const response = await fetch('/api/pdf-upload', {
       method: 'POST',
@@ -33,7 +43,13 @@ export async function uploadPdf(pdfData: string, fileId: string = generatePdfId(
     }
 
     const result = await response.json();
-    return result.fileId;
+    
+    // Return the complete response object which includes:
+    // - fileId: The ID of the uploaded PDF
+    // - textPreview: A preview of the extracted text (if extraction succeeded)
+    // - extractionSuccess: Boolean indicating if text extraction succeeded
+    // - extractionError: Error message if text extraction failed
+    return result;
   } catch (error) {
     console.error('Error uploading PDF:', error);
     throw error;
