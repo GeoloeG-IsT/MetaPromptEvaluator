@@ -108,19 +108,15 @@ export type EvaluationResultItem = {
 };
 
 export async function evaluatePrompt(
-  metaPrompt: string,
+  finalPrompt: string,
   datasetItems: DatasetItem[],
   userPrompt: string
 ): Promise<EvaluationResultItem[]> {
   const results: EvaluationResultItem[] = [];
-  
-  // Inject user prompt into meta prompt
-  const finalPrompt = await generateFinalPrompt(metaPrompt, userPrompt);
     
   console.log("=== EVALUATION INFO ===");
-  console.log("Original Meta Prompt:", metaPrompt);
-  console.log("User Prompt:", userPrompt);
   console.log("Final Prompt:", finalPrompt);
+  console.log("User Prompt (reference only):", userPrompt);
   console.log("Number of Dataset Items:", datasetItems.length);
   console.log("=======================");
   

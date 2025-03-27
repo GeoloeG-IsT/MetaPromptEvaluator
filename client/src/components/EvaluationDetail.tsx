@@ -78,13 +78,20 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
     enabled: !!evaluation?.promptId,
   });
   
-  // Get the final prompt (expanded with userPrompt)
+  // Get the final prompt (either from stored value or expanded with userPrompt)
   const { data: finalPromptData, isLoading: finalPromptLoading } = useQuery({
-    queryKey: ['/api/generate-final-prompt', prompt?.metaPrompt, evaluation?.userPrompt],
+    queryKey: ['/api/generate-final-prompt', evaluation?.finalPrompt, prompt?.metaPrompt, evaluation?.userPrompt],
     queryFn: async () => {
+      // If we already have a final prompt stored in the evaluation, use that
+      if (evaluation?.finalPrompt) {
+        return { finalPrompt: evaluation.finalPrompt };
+      }
+      
+      // Otherwise, generate it on the fly
       if (!prompt?.metaPrompt) {
         return { finalPrompt: "Meta prompt not available" };
       }
+      
       const res = await fetch('/api/generate-final-prompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -96,7 +103,7 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
       if (!res.ok) throw new Error('Failed to generate final prompt');
       return res.json();
     },
-    enabled: !!prompt?.metaPrompt && !!evaluation,
+    enabled: !!evaluation && (!!evaluation.finalPrompt || !!prompt?.metaPrompt),
   });
   
   // Fetch associated dataset

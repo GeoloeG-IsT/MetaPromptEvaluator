@@ -492,12 +492,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/evaluations", async (req: Request, res: Response) => {
     try {
       const validatedData = insertEvaluationSchema.parse(req.body);
-      const evaluation = await storage.createEvaluation(validatedData);
+      
+      // Get the meta prompt from the prompt ID
+      const prompt = await storage.getPrompt(validatedData.promptId);
+      if (!prompt) {
+        return res.status(404).json({ message: "Prompt not found" });
+      }
+      
+      // Compute the final prompt using the meta prompt and user prompt
+      const finalPrompt = validatedData.userPrompt ? 
+        prompt.metaPrompt.replace(/{{user_prompt}}/g, validatedData.userPrompt) : 
+        prompt.metaPrompt;
+        
+      // Add the final prompt to the evaluation data
+      const evaluationData = {
+        ...validatedData,
+        finalPrompt
+      };
+      
+      const evaluation = await storage.createEvaluation(evaluationData);
       res.status(201).json(evaluation);
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ message: "Invalid evaluation data", errors: error.format() });
       } else {
+        console.error("Error creating evaluation:", error);
         res.status(500).json({ message: "Failed to create evaluation" });
       }
     }
@@ -561,6 +580,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (datasetId !== undefined) updateData.datasetId = datasetId;
       if (userPrompt !== undefined) updateData.userPrompt = userPrompt;
       
+      // Compute and update the final prompt
+      if (promptId !== undefined || userPrompt !== undefined) {
+        // Determine which prompt to use
+        const targetPromptId = promptId !== undefined ? promptId : existingEvaluation.promptId;
+        const targetUserPrompt = userPrompt !== undefined ? userPrompt : existingEvaluation.userPrompt;
+        
+        // Get the meta prompt
+        const prompt = await storage.getPrompt(targetPromptId);
+        if (prompt) {
+          // Compute the final prompt
+          const finalPrompt = targetUserPrompt ? 
+            prompt.metaPrompt.replace(/{{user_prompt}}/g, targetUserPrompt) : 
+            prompt.metaPrompt;
+            
+          updateData.finalPrompt = finalPrompt;
+        }
+      }
+      
       // Update the evaluation
       const updatedEvaluation = await storage.updateEvaluation(id, updateData);
       
@@ -570,6 +607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: "Failed to update evaluation" });
       }
     } catch (error) {
+      console.error("Error updating evaluation:", error);
       res.status(500).json({ message: "Failed to update evaluation" });
     }
   });
@@ -669,10 +707,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
+          // Use finalPrompt if available, otherwise generate it
+          const finalPrompt = updatedEvaluation.finalPrompt ||
+            (updatedEvaluation.userPrompt ? 
+              prompt.metaPrompt.replace(/{{user_prompt}}/g, updatedEvaluation.userPrompt) : 
+              prompt.metaPrompt);
+              
+          // If finalPrompt wasn't already saved, update it now
+          if (!updatedEvaluation.finalPrompt) {
+            await storage.updateEvaluation(evaluationId, { finalPrompt });
+          }
+              
           const results = await evaluatePrompt(
-            prompt.metaPrompt || "", 
+            finalPrompt, 
             datasetItems, 
-            updatedEvaluation.userPrompt || "" // Pass userPrompt to evaluatePrompt function with empty string fallback
+            updatedEvaluation.userPrompt || "" // Pass userPrompt for reference if needed
           );
           
           // Store results and update evaluation

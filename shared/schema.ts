@@ -80,6 +80,7 @@ export const evaluations = pgTable("evaluations", {
   priority: text("priority").default("Balanced"), // deprecated
   // TODO(pg)
   userPrompt: text("user_prompt"),
+  finalPrompt: text("final_prompt"), // The processed meta prompt with user prompt inserted
   score: integer("score"),
   metrics: jsonb("metrics"), // Store metrics like accuracy, completeness, etc.
   status: text("status").default("pending"),
@@ -94,6 +95,7 @@ export const insertEvaluationSchema = createInsertSchema(evaluations).omit({
   status: true,
   createdAt: true,
   completedAt: true,
+  // Note: finalPrompt is not omitted so it can be saved during creation
 });
 
 export type InsertEvaluation = z.infer<typeof insertEvaluationSchema>;
