@@ -102,7 +102,7 @@ export default function Datasets() {
   
   // Mutation to create a new dataset
   const createDatasetMutation = useMutation({
-    mutationFn: (dataset: NewDatasetForm) => apiRequest('/api/datasets', 'POST', dataset),
+    mutationFn: (dataset: NewDatasetForm) => apiRequest('POST', '/api/datasets', dataset),
     onSuccess: () => {
       // Reset form and close dialog
       setNewDataset({ name: "", description: "" });
@@ -128,7 +128,7 @@ export default function Datasets() {
   
   // Mutation to delete a dataset
   const deleteDatasetMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/datasets/${id}`, 'DELETE'),
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/datasets/${id}`),
     onSuccess: () => {
       // Close detail view if the deleted dataset was selected
       if (selectedDataset) {
@@ -155,7 +155,7 @@ export default function Datasets() {
   
   // Mutation to add a dataset item
   const addDatasetItemMutation = useMutation({
-    mutationFn: (item: any) => apiRequest('/api/dataset-items', 'POST', item),
+    mutationFn: (item: any) => apiRequest('POST', '/api/dataset-items', item),
     onSuccess: () => {
       // Reset form and close dialog
       setNewDatasetItem({
@@ -190,7 +190,7 @@ export default function Datasets() {
   
   // Mutation to update a dataset item
   const updateDatasetItemMutation = useMutation({
-    mutationFn: (item: any) => apiRequest(`/api/dataset-items/${item.id}`, 'PUT', item),
+    mutationFn: (item: any) => apiRequest('PUT', `/api/dataset-items/${item.id}`, item),
     onSuccess: () => {
       // Reset form and close dialog
       setNewDatasetItem({
@@ -225,7 +225,7 @@ export default function Datasets() {
   
   // Mutation to delete a dataset item
   const deleteDatasetItemMutation = useMutation({
-    mutationFn: (id: number) => apiRequest(`/api/dataset-items/${id}`, 'DELETE'),
+    mutationFn: (id: number) => apiRequest('DELETE', `/api/dataset-items/${id}`),
     onSuccess: () => {
       // Refetch dataset items and update dataset to reflect new item count
       refetchItems();
