@@ -244,129 +244,23 @@ export async function generatePdfResponse(finalPrompt: string, pdfFileId: string
     console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
     console.log("PDF File ID:", pdfFileId);
     
-    // First, verify that the PDF file exists
-    const bucketPath = path.join('.', 'MetaPromptEvaluatorBucket');
-    const filePath = path.join(bucketPath, `${pdfFileId}.pdf`);
-    
-    console.log(`Looking for PDF at path: ${filePath}`);
-    
-    // Check if the file exists
-    let fileExists = false;
     try {
-      await fs.access(filePath);
-      fileExists = true;
-      console.log(`PDF file found at ${filePath}`);
+      // Extract text from PDF using our bucket storage's enhanced extraction
+      console.log("Extracting text from PDF using bucket storage");
+      const extractedText = await bucketStorage.extractTextFromPdf(pdfFileId);
+      
+      if (extractedText) {
+        console.log(`Successfully extracted text from PDF, length: ${extractedText.length} characters`);
+        console.log(`Text preview: ${extractedText.substring(0, 100)}...`);
+        
+        // Process the extracted text through the LLM using our text response function
+        return await generateTextResponse(finalPrompt, extractedText);
+      } else {
+        throw new Error("Extracted text is empty");
+      }
     } catch (error: any) {
-      console.error(`PDF file not found at ${filePath}:`, error);
-      return `Error: PDF file with ID ${pdfFileId} was not found in storage.`;
-    }
-    
-    // For known test files, use predefined responses to ensure accurate testing
-    // This approach allows for proper testing while a more robust PDF extraction solution can be implemented
-    if (pdfFileId === "invoice_rec6jnwamPj8m1u5y") {
-      console.log("Using predefined content for test file invoice_rec6jnwamPj8m1u5y");
-      
-      // Instead of directly returning a structured response, we'll use predefined extracted text
-      // and pass it through the text response generator for consistency
-      const extractedText = `
-      Brauhaus an der Thomaskirche
-      Tisch: 8
-      Bedienung: Horst
-      Datum: 23.05.2024
-      
-      Steinpilzcremesuppe     17.80 EUR
-      Tomatensuppe            15.00 EUR
-      Apfelschorle 0,5l       11.00 EUR
-      Pils Thomask. 0,5l      10.40 EUR
-      Schwarz Thomask. 0,5l   20.80 EUR
-      Pizza Salame Prosc.     12.90 EUR
-      Pizza Tonno Cipolla     12.90 EUR
-      Spaghetti Carbonara     14.90 EUR
-      Gnocchi al Gorgonzol    16.00 EUR
-      
-      Netto:                 110.67 EUR
-      MwSt. 19%:              21.03 EUR
-      Gesamt:                131.70 EUR
-      `;
-      
-      // Process the extracted text through the LLM using our text response function
-      return await generateTextResponse(finalPrompt, extractedText);
-    } 
-    else if (pdfFileId === "invoice_p9sj211oaQxlLdaX3") {
-      console.log("Using predefined content for test file invoice_p9sj211oaQxlLdaX3");
-      
-      const extractedText = `
-      Cafe Milano
-      Via Roma 123
-      10121 Torino
-      
-      Rechnung Nr. 45678
-      Datum: 24.05.2024
-      Tisch: 12
-      
-      Cappuccino            4.50 EUR
-      Espresso              3.00 EUR
-      Tiramisu              6.50 EUR
-      Pizza Margherita     12.50 EUR
-      Lasagna              14.50 EUR
-      Mineral Water         3.50 EUR
-      Wine (House)         18.00 EUR
-      Bruschetta            7.50 EUR
-      Gelato                5.50 EUR
-      Panna Cotta           6.00 EUR
-      
-      Netto:               75.21 EUR
-      MwSt. 19%:           14.29 EUR
-      Gesamt:              89.50 EUR
-      `;
-      
-      return await generateTextResponse(finalPrompt, extractedText);
-    } 
-    else if (pdfFileId === "invoice_d7bKplq2nR93vxzS4") {
-      console.log("Using predefined content for test file invoice_d7bKplq2nR93vxzS4");
-      
-      const extractedText = `
-      Taj Mahal Restaurant
-      Berliner Str. 45
-      10115 Berlin
-      
-      Rechnung Nr. 789012
-      Datum: 25.05.2024
-      Tisch: 7
-      
-      Chicken Tikka Masala     18.90 EUR
-      Garlic Naan               3.50 EUR
-      Vegetable Samosas         6.80 EUR
-      Lamb Biryani             21.90 EUR
-      Mango Lassi               4.50 EUR
-      Palak Paneer             16.90 EUR
-      Tandoori Chicken         19.90 EUR
-      Raita                     3.80 EUR
-      Rice                      4.00 EUR
-      Gulab Jamun               6.50 EUR
-      
-      Netto:                  131.26 EUR
-      MwSt. 19%:               24.94 EUR
-      Gesamt:                 156.20 EUR
-      `;
-      
-      return await generateTextResponse(finalPrompt, extractedText);
-    } 
-    else {
-      // For non-test PDFs, inform the user that PDF content extraction requires additional implementation
-      console.log("PDF is not one of the predefined test files, using a placeholder message");
-      
-      // Note: This is a placeholder for proper PDF text extraction
-      // In a production system, proper PDF parsing would be implemented here
-      const placeholderText = `
-      This is a PDF document with the ID: ${pdfFileId}.
-      Proper PDF text extraction requires a specialized PDF parsing library.
-      The current implementation only handles predefined test files.
-      For a complete implementation, a PDF parsing library like pdf-parse or pdf.js should be integrated.
-      `;
-      
-      // Process the placeholder text through the LLM
-      return await generateTextResponse(finalPrompt, placeholderText);
+      console.error(`Error processing PDF ${pdfFileId}:`, error);
+      return `Error: Unable to process PDF file with ID ${pdfFileId}. ${error.message || 'Unknown error'}`;
     }
   } catch (error: any) {
     console.error("Error generating PDF response:", error);
