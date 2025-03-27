@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import { DatasetItem } from "@shared/schema";
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -111,7 +113,7 @@ export async function evaluatePrompt(
         generatedResponse = "Error: Dataset item has no valid input";
       }
       
-      console.log(`Generated Response (first 100 chars): ${generatedResponse}`);
+      console.log(`Generated Response (first 100 chars): ${generatedResponse.substring(0, 100)}...`);
       
       // Evaluate the generated response against the valid response
       const evaluationResult = await evaluateResponse(
@@ -183,7 +185,7 @@ export async function generateImageResponse(finalPrompt: string, imageUrl: strin
     });
 
     const result = response.choices[0].message.content || "Failed to generate response for image";
-    console.log("Generated response (preview):", result);
+    console.log("Generated response (preview):", result.substring(0, 100) + "...");
     return result;
   } catch (error: any) {
     console.error("Error generating image response:", error);
@@ -224,7 +226,7 @@ export async function generateTextResponse(finalPrompt: string, inputText: strin
     });
 
     const result = response.choices[0].message.content || "Failed to generate response for text";
-    console.log("Generated response (preview):", result);
+    console.log("Generated response (preview):", result.substring(0, 100) + "...");
     return result;
   } catch (error: any) {
     console.error("Error generating text response:", error);
@@ -246,9 +248,6 @@ export async function generatePdfResponse(finalPrompt: string, pdfFileId: string
     // First, retrieve the PDF from our bucket storage directly from the filesystem
     console.log("Retrieving PDF data from bucket");
     
-    // Import required modules
-    const fs = require('fs').promises;
-    const path = require('path');
     const bucketPath = path.join('.', 'MetaPromptEvaluatorBucket');
     const filePath = path.join(bucketPath, `${pdfFileId}.pdf`);
     
@@ -258,10 +257,10 @@ export async function generatePdfResponse(finalPrompt: string, pdfFileId: string
     const pdfBuffer = await fs.readFile(filePath);
     
     // Convert to base64 data URL
-    const base64Data = pdfBuffer.toString('base64');
+    const base64Data = Buffer.from(pdfBuffer).toString('base64');
     const pdfDataUrl = `data:application/pdf;base64,${base64Data}`;
     
-    console.log(`Read PDF file successfully, size: ${pdfBuffer.length} bytes`);
+    console.log(`Read PDF file successfully, size: ${pdfBuffer.byteLength} bytes`);
     
     // Combine user prompt if provided
     const userContent = userPrompt 
