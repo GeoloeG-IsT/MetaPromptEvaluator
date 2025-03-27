@@ -151,6 +151,7 @@ export default function Datasets() {
         inputType: "text",
         inputText: "",
         inputImage: "",
+        inputPdf: "",
         validResponse: "",
       });
       setUploadedImage(null);
@@ -194,6 +195,7 @@ export default function Datasets() {
       setSelectedDatasetItem(null);
       setNewDatasetItem({
         inputType: "text",
+        inputPdf: "",
         inputText: "",
         inputImage: "",
         validResponse: "",
@@ -333,6 +335,7 @@ export default function Datasets() {
     // Reset the form data
     setNewDatasetItem({
       inputType: "text",
+        inputPdf: "",
       inputText: "",
       inputImage: "",
       validResponse: "",
@@ -347,6 +350,7 @@ export default function Datasets() {
     
     // Set the form data with the current values
     setNewDatasetItem({
+        inputPdf: "",
       inputType: item.inputType || "text",
       inputText: item.inputText || "",
       inputImage: item.inputImage || "",
@@ -823,6 +827,119 @@ export default function Datasets() {
                   )}
                 </div>
               </TabsContent>
+              
+              <TabsContent value="pdf" className="pt-4 space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="inputPdf" className="text-sm font-medium">
+                    PDF File
+                  </label>
+                  <Input
+                    id="inputPdf"
+                    value={newDatasetItem.inputPdf}
+                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputPdf: e.target.value })}
+                    placeholder="e.g., document-id-123"
+                    disabled={!!uploadedPdf}
+                  />
+                </div>
+                
+                <div 
+                  className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => document.getElementById('pdfUpload')?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.add('border-blue-500');
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove('border-blue-500');
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove('border-blue-500');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0 && files[0].type === 'application/pdf') {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        if (event.target?.result) {
+                          setUploadedPdf(event.target.result as string);
+                          toast({
+                            title: "PDF uploaded",
+                            description: "PDF file has been uploaded."
+                          });
+                        }
+                      };
+                      reader.readAsDataURL(files[0]);
+
+                      // Save the file ID (name without extension) to the form state
+                      const fileName = files[0].name;
+                      const fileId = fileName.replace('.pdf', '');
+                      setNewDatasetItem({ ...newDatasetItem, inputPdf: fileId });
+                    } else {
+                      toast({
+                        title: "Invalid file",
+                        description: "Please upload a PDF file.",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                >
+                  <input
+                    type="file"
+                    id="pdfUpload"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          if (event.target?.result) {
+                            setUploadedPdf(event.target.result as string);
+                            toast({
+                              title: "PDF uploaded",
+                              description: "PDF file has been uploaded."
+                            });
+                          }
+                        };
+                        reader.readAsDataURL(files[0]);
+                        
+                        // Save the file ID (name without extension) to the form state
+                        const fileName = files[0].name;
+                        const fileId = fileName.replace('.pdf', '');
+                        setNewDatasetItem({ ...newDatasetItem, inputPdf: fileId });
+                      }
+                    }}
+                  />
+                  
+                  {uploadedPdf ? (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span className="material-icons text-4xl text-green-500">description</span>
+                      <p className="text-sm">PDF uploaded successfully</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadedPdf(null);
+                          setNewDatasetItem({ ...newDatasetItem, inputPdf: "" });
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span className="material-icons text-4xl text-gray-400">upload_file</span>
+                      <p>Drag & drop a PDF file here or click to browse</p>
+                      <p className="text-xs text-gray-500">Supports PDF files only</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
             </Tabs>
             
             <div className="space-y-2 pt-4">
@@ -849,6 +966,7 @@ export default function Datasets() {
                 addDatasetItemMutation.isPending || 
                 (newDatasetItem.inputType === "text" && !newDatasetItem.inputText) ||
                 (newDatasetItem.inputType === "image" && !newDatasetItem.inputImage && !uploadedImage) ||
+                (newDatasetItem.inputType === "pdf" && !newDatasetItem.inputPdf && !uploadedPdf) ||
                 !newDatasetItem.validResponse
               }
             >
@@ -874,10 +992,10 @@ export default function Datasets() {
               value={newDatasetItem.inputType}
               onValueChange={(value) => setNewDatasetItem({ ...newDatasetItem, inputType: value })}
             >
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="text">Text Input</TabsTrigger>
-                <TabsTrigger value="pdf">PDF Input</TabsTrigger>
                 <TabsTrigger value="image">Image Input</TabsTrigger>
+                <TabsTrigger value="pdf">PDF Input</TabsTrigger>
               </TabsList>
               
               <TabsContent value="text" className="pt-4">
@@ -996,6 +1114,119 @@ export default function Datasets() {
                   )}
                 </div>
               </TabsContent>
+              
+              <TabsContent value="pdf" className="pt-4 space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="editInputPdf" className="text-sm font-medium">
+                    PDF File
+                  </label>
+                  <Input
+                    id="editInputPdf"
+                    value={newDatasetItem.inputPdf}
+                    onChange={(e) => setNewDatasetItem({ ...newDatasetItem, inputPdf: e.target.value })}
+                    placeholder="e.g., document-id-123"
+                    disabled={!!uploadedPdf}
+                  />
+                </div>
+                
+                <div 
+                  className="border-2 border-dashed rounded-md p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => document.getElementById('editPdfUpload')?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.add('border-blue-500');
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove('border-blue-500');
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.currentTarget.classList.remove('border-blue-500');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0 && files[0].type === 'application/pdf') {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        if (event.target?.result) {
+                          setUploadedPdf(event.target.result as string);
+                          toast({
+                            title: "PDF uploaded",
+                            description: "PDF file has been uploaded."
+                          });
+                        }
+                      };
+                      reader.readAsDataURL(files[0]);
+
+                      // Save the file ID (name without extension) to the form state
+                      const fileName = files[0].name;
+                      const fileId = fileName.replace('.pdf', '');
+                      setNewDatasetItem({ ...newDatasetItem, inputPdf: fileId });
+                    } else {
+                      toast({
+                        title: "Invalid file",
+                        description: "Please upload a PDF file.",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                >
+                  <input
+                    type="file"
+                    id="editPdfUpload"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = e.target.files;
+                      if (files && files.length > 0) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          if (event.target?.result) {
+                            setUploadedPdf(event.target.result as string);
+                            toast({
+                              title: "PDF uploaded",
+                              description: "PDF file has been uploaded."
+                            });
+                          }
+                        };
+                        reader.readAsDataURL(files[0]);
+                        
+                        // Save the file ID (name without extension) to the form state
+                        const fileName = files[0].name;
+                        const fileId = fileName.replace('.pdf', '');
+                        setNewDatasetItem({ ...newDatasetItem, inputPdf: fileId });
+                      }
+                    }}
+                  />
+                  
+                  {uploadedPdf ? (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span className="material-icons text-4xl text-green-500">description</span>
+                      <p className="text-sm">PDF uploaded successfully</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadedPdf(null);
+                          setNewDatasetItem({ ...newDatasetItem, inputPdf: "" });
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span className="material-icons text-4xl text-gray-400">upload_file</span>
+                      <p>Drag & drop a PDF file here or click to browse</p>
+                      <p className="text-xs text-gray-500">Supports PDF files only</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
             </Tabs>
             
             <div className="space-y-2 pt-4">
@@ -1022,6 +1253,7 @@ export default function Datasets() {
                 updateDatasetItemMutation.isPending || 
                 (newDatasetItem.inputType === "text" && !newDatasetItem.inputText) ||
                 (newDatasetItem.inputType === "image" && !newDatasetItem.inputImage && !uploadedImage) ||
+                (newDatasetItem.inputType === "pdf" && !newDatasetItem.inputPdf && !uploadedPdf) ||
                 !newDatasetItem.validResponse
               }
             >
