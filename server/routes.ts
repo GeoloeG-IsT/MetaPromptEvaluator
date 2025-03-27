@@ -486,15 +486,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Evaluation not found" });
       }
       
-      // Don't allow updating evaluations that have been run
-      if (existingEvaluation.status !== 'pending' && existingEvaluation.status !== 'failed') {
-        return res.status(400).json({ 
-          message: "Cannot update evaluations that have already been run or are in progress" 
-        });
+      // Get the evaluation results before updating
+      const evaluationResults = await storage.getEvaluationResults(id);
+      
+      // Delete all existing evaluation results if there are any
+      if (evaluationResults.length > 0) {
+        for (const result of evaluationResults) {
+          await storage.deleteEvaluationResult(result.id);
+        }
+        console.log(`Deleted ${evaluationResults.length} evaluation results for evaluation ${id}`);
       }
       
       // Construct update object
-      const updateData: Partial<Evaluation> = {};
+      const updateData: Partial<Evaluation> = {
+        status: 'pending', // Reset the status to pending
+        metrics: null      // Reset the metrics
+      };
+      
       if (promptId !== undefined) updateData.promptId = promptId;
       if (datasetId !== undefined) updateData.datasetId = datasetId;
       if (userPrompt !== undefined) updateData.userPrompt = userPrompt;
