@@ -16,7 +16,14 @@ import UploadDropzone from './UploadDropzone';
 interface DatasetItemDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  dataset?: Dataset;
+  dataset?: {
+    id: number;
+    name: string;
+    description: string | null;
+    userId: number | null;
+    itemCount: number | null;
+    createdAt: Date | null;
+  };
 }
 
 export default function DatasetItemDialog({
@@ -88,12 +95,12 @@ export default function DatasetItemDialog({
       // Extract the base64 data from the data URL
       const base64Data = pdfData.split(',')[1];
       
-      return await apiRequest<{fileId: string, extractionSuccess?: boolean}>('POST', '/api/pdf-upload', {
+      return await apiRequest('POST', '/api/pdf-upload', {
         fileData: base64Data,
         fileName: pdfName
       });
     },
-    onSuccess: (response) => {
+    onSuccess: (response: any) => {
       console.log('PDF uploaded successfully:', response);
       setPdfId(response.fileId);
       
@@ -128,9 +135,11 @@ export default function DatasetItemDialog({
   // Create dataset item mutation
   const createDatasetItemMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log('Creating dataset item with data:', data);
       return await apiRequest('POST', '/api/dataset-items', data);
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      console.log('Dataset item created successfully:', response);
       setIsSubmitting(false);
       
       // Show success toast

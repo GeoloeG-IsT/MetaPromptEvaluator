@@ -858,7 +858,14 @@ export default function Datasets() {
       <DatasetItemDialog
         isOpen={isAddItemDialogOpen}
         onClose={() => setIsAddItemDialogOpen(false)}
-        dataset={selectedDataset || undefined}
+        dataset={selectedDataset ? {
+          id: selectedDataset.id,
+          name: selectedDataset.name,
+          description: selectedDataset.description,
+          userId: selectedDataset.userId === undefined ? null : selectedDataset.userId,
+          itemCount: selectedDataset.itemCount,
+          createdAt: selectedDataset.createdAt
+        } : undefined}
       />
       
       {/* Edit Dataset Item Dialog */}
