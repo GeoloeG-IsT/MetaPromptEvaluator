@@ -186,8 +186,17 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
   // Run evaluation mutation
   const runEvaluationMutation = useMutation({
     mutationFn: async () => {
+      // Always fetch the latest evaluation to get the most up-to-date userPrompt
+      const latestEvaluation = await fetch(`/api/evaluations/${evaluationId}`)
+        .then(res => res.json())
+        .catch(err => {
+          console.error("Error fetching latest evaluation:", err);
+          return evaluation; // Fall back to current evaluation on error
+        });
+      
+      // Use the most recent userPrompt from the refreshed evaluation
       return await apiRequest('POST', `/api/evaluations/${evaluationId}/start`, { 
-        userPrompt: evaluation?.userPrompt || '' 
+        userPrompt: latestEvaluation?.userPrompt || evaluation?.userPrompt || '' 
       });
     },
     onSuccess: () => {

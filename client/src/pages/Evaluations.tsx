@@ -64,9 +64,19 @@ export default function Evaluations() {
   // Run evaluation mutation
   const runEvaluationMutation = useMutation({
     mutationFn: async (data: { id: number, userPrompt: string }) => {
-      return await apiRequest('POST', `/api/evaluations/${data.id}/start`, { 
-        userPrompt: data.userPrompt 
-      });
+      // Fetch the latest version of the evaluation first
+      const latestEvaluation = await fetch(`/api/evaluations/${data.id}`)
+        .then(res => res.json())
+        .catch(err => {
+          console.error("Error fetching latest evaluation:", err);
+          return null; // Return null on error
+        });
+      
+      // Use the latest userPrompt if available, otherwise fall back to the provided one
+      const userPrompt = latestEvaluation?.userPrompt || data.userPrompt;
+      console.log(`Starting evaluation ${data.id} with userPrompt:`, userPrompt);
+      
+      return await apiRequest('POST', `/api/evaluations/${data.id}/start`, { userPrompt });
     },
     onSuccess: () => {
       toast({
