@@ -685,6 +685,14 @@ class LocalBucketStorage {
       throw new Error(`Failed to delete PDF: ${error?.message || 'Unknown error'}`);
     }
   }
+  
+  /**
+   * Get the storage path of the bucket
+   * @returns The path to the bucket directory
+   */
+  getBucketPath(): string {
+    return this.bucketPath;
+  }
 }
 
 // Create a singleton instance of the bucket storage

@@ -11,8 +11,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { generatePdfId, uploadPdf, getPdf, deletePdf } from "@/lib/pdfUtils";
+import { generatePdfId, uploadPdf, getPdf, getPdfMarkdown, deletePdf } from "@/lib/pdfUtils";
 import { formatDistanceToNow } from "date-fns";
+import { MarkdownViewer } from "@/components/MarkdownViewer";
 
 type Dataset = {
   id: number;
@@ -659,49 +660,82 @@ export default function Datasets() {
                             />
                           </div>
                         ) : item.inputType === 'pdf' && item.inputPdf ? (
-                          <div 
-                            className="p-2 bg-gray-50 rounded text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-100"
-                            onClick={() => {
-                              // When clicked, try to get the PDF content and open in a new tab
-                              toast({
-                                title: "Loading PDF",
-                                description: "Retrieving PDF document..."
-                              });
-                              
-                              if (item.inputPdf) {
-                                getPdf(item.inputPdf).then(pdfData => {
-                                  // Create a new window/tab with the PDF content
-                                  const pdfWindow = window.open();
-                                  if (pdfWindow) {
-                                    pdfWindow.document.write(`
-                                      <iframe 
-                                        width="100%" 
-                                        height="100%" 
-                                        src="${pdfData}" 
-                                        style="border: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
-                                      ></iframe>
-                                    `);
-                                  } else {
+                          <div className="space-y-2">
+                            <div 
+                              className="p-2 bg-gray-50 rounded text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-100"
+                              onClick={() => {
+                                // When clicked, try to get the PDF content and open in a new tab
+                                toast({
+                                  title: "Loading PDF",
+                                  description: "Retrieving PDF document..."
+                                });
+                                
+                                if (item.inputPdf) {
+                                  getPdf(item.inputPdf).then(pdfData => {
+                                    // Create a new window/tab with the PDF content
+                                    const pdfWindow = window.open();
+                                    if (pdfWindow) {
+                                      pdfWindow.document.write(`
+                                        <iframe 
+                                          width="100%" 
+                                          height="100%" 
+                                          src="${pdfData}" 
+                                          style="border: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
+                                        ></iframe>
+                                      `);
+                                    } else {
+                                      toast({
+                                        title: "Popup blocked",
+                                        description: "Please allow popups to view PDF documents",
+                                        variant: "destructive"
+                                      });
+                                    }
+                                  }).catch(error => {
+                                    console.error("Error loading PDF:", error);
                                     toast({
-                                      title: "Popup blocked",
-                                      description: "Please allow popups to view PDF documents",
+                                      title: "PDF Error",
+                                      description: "Failed to load PDF document",
                                       variant: "destructive"
                                     });
-                                  }
-                                }).catch(error => {
-                                  console.error("Error loading PDF:", error);
-                                  toast({
-                                    title: "PDF Error",
-                                    description: "Failed to load PDF document",
-                                    variant: "destructive"
                                   });
-                                });
-                              }
-                            }}
-                          >
-                            <span className="material-icons text-red-500">picture_as_pdf</span>
-                            <span className="font-medium truncate">{item.inputPdf}</span>
-                            <span className="text-xs text-blue-500">(Click to view)</span>
+                                }
+                              }}
+                            >
+                              <span className="material-icons text-red-500">picture_as_pdf</span>
+                              <span className="font-medium truncate">{item.inputPdf}</span>
+                              <span className="text-xs text-blue-500">(Click to view PDF)</span>
+                            </div>
+                            
+                            {/* Button to toggle markdown visibility */}
+                            <div className="flex justify-end">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Toggle showing the markdown viewer for this item
+                                  const currentValue = item.id === (window as any).activeMarkdownItem;
+                                  if (currentValue) {
+                                    (window as any).activeMarkdownItem = null;
+                                  } else {
+                                    (window as any).activeMarkdownItem = item.id;
+                                  }
+                                  // Force re-render to show/hide markdown
+                                  setSelectedDataset({...selectedDataset});
+                                }}
+                              >
+                                <span className="material-icons text-xs mr-1">subject</span>
+                                {item.id === (window as any).activeMarkdownItem ? 'Hide Markdown' : 'View Markdown'}
+                              </Button>
+                            </div>
+                            
+                            {/* Conditionally show the markdown viewer */}
+                            {item.id === (window as any).activeMarkdownItem && (
+                              <MarkdownViewer 
+                                fileId={item.inputPdf} 
+                                title={`Markdown: ${item.inputPdf}`}
+                              />
+                            )}
                           </div>
                         ) : (
                           <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">

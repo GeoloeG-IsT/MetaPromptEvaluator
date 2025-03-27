@@ -1,8 +1,10 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import * as path from "path";
 import { storage } from "./storage";
 import { generateFinalPrompt, evaluatePrompt, generateLLMResponse } from "./openai";
 import { bucketStorage } from "./bucket";
+import { isPdfAlreadyParsed, getExistingMarkdownContent } from "./llamaparse";
 import { z } from "zod";
 import { 
   insertPromptSchema, 
@@ -352,6 +354,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error retrieving PDF:", error);
       res.status(500).json({ message: "Failed to retrieve PDF file" });
+    }
+  });
+  
+  // Get the Markdown content for a PDF file
+  app.get("/api/pdf/:fileId/markdown", async (req: Request, res: Response) => {
+    try {
+      const { fileId } = req.params;
+      
+      // Check if the markdown file exists
+      const markdownPath = path.join(bucketStorage.getBucketPath(), `${fileId}.md`);
+      if (!isPdfAlreadyParsed(markdownPath)) {
+        return res.status(404).json({ 
+          message: "Markdown file not found for this PDF",
+          markdownContent: null
+        });
+      }
+      
+      // Get the markdown content
+      const markdownContent = await getExistingMarkdownContent(markdownPath);
+      
+      res.json({ 
+        markdownContent,
+        fileId 
+      });
+    } catch (error) {
+      console.error("Error retrieving Markdown for PDF:", error);
+      res.status(500).json({ 
+        message: "Failed to retrieve Markdown content",
+        error: String(error)
+      });
     }
   });
   

@@ -23,6 +23,14 @@ export interface PdfUploadResponse {
 }
 
 /**
+ * Response from PDF markdown API
+ */
+export interface PdfMarkdownResponse {
+  markdownContent: string | null;
+  fileId: string;
+}
+
+/**
  * Upload a PDF file to the server
  * @param pdfData Base64 encoded PDF data
  * @param fileId Optional file ID (if not provided, one will be generated)
@@ -86,6 +94,32 @@ export async function getPdf(fileId: string): Promise<string> {
   } catch (error) {
     console.error('Error getting PDF:', error);
     throw error;
+  }
+}
+
+/**
+ * Get the markdown version of a PDF file
+ * @param fileId The file ID of the PDF
+ * @returns The markdown content of the PDF, or null if not available
+ */
+export async function getPdfMarkdown(fileId: string): Promise<string | null> {
+  try {
+    console.log(`Getting markdown for PDF with ID: ${fileId}`);
+    const response = await fetch(`/api/pdf/${fileId}/markdown`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.warn(`No markdown file found for PDF: ${fileId}`);
+        return null;
+      }
+      throw new Error(`Failed to get PDF markdown: ${response.statusText}`);
+    }
+    
+    const result: PdfMarkdownResponse = await response.json();
+    return result.markdownContent;
+  } catch (error) {
+    console.error('Error getting PDF markdown:', error);
+    return null;
   }
 }
 
