@@ -218,6 +218,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete dataset item" });
     }
   });
+  
+  // Update dataset item
+  app.put("/api/dataset-items/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Get the original item to preserve its datasetId
+      const existingItem = await storage.getDatasetItem(id);
+      if (!existingItem) {
+        return res.status(404).json({ message: "Dataset item not found" });
+      }
+      
+      // Delete the old item
+      await storage.deleteDatasetItem(id);
+      
+      // Create a new item with the updated data
+      const newItem = {
+        ...req.body,
+        datasetId: existingItem.datasetId
+      };
+      
+      const updatedItem = await storage.createDatasetItem(newItem);
+      res.status(200).json(updatedItem);
+    } catch (error) {
+      console.error("Error updating dataset item:", error);
+      res.status(500).json({ message: "Failed to update dataset item" });
+    }
+  });
 
   // OpenAI interaction
   app.post("/api/generate-final-prompt", async (req: Request, res: Response) => {

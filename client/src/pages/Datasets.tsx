@@ -176,12 +176,9 @@ export default function Datasets() {
       validResponse: string;
     }) => {
       console.log("Updating dataset item:", data);
-      // We need to use PUT here but the API doesn't have an update endpoint
-      // For now, we'll delete the old item and create a new one
-      await apiRequest("DELETE", `/api/dataset-items/${data.id}`);
-      const { id, ...itemData } = data;
-      const response = await apiRequest("POST", "/api/dataset-items", {
-        ...itemData,
+      // Use the new PUT endpoint for updating dataset items
+      const response = await apiRequest("PUT", `/api/dataset-items/${data.id}`, {
+        ...data,
         datasetId: selectedDataset?.id
       });
       return response.json();
