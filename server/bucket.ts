@@ -353,9 +353,14 @@ class LocalBucketStorage {
    * Upload a PDF file to the bucket
    * @param fileData Base64 encoded file data
    * @param fileId Unique identifier for the file (file name without extension)
-   * @returns The file ID
+   * @returns An object containing the fileId and extraction status information
    */
-  async uploadPdf(fileData: string, fileId: string): Promise<string> {
+  async uploadPdf(fileData: string, fileId: string): Promise<{
+    fileId: string;
+    extractionSuccess?: boolean;
+    extractionError?: string;
+    textPreview?: string;
+  }> {
     try {
       console.log(`Uploading PDF with ID: ${fileId} to bucket: ${this.bucketPath}`);
       
@@ -389,7 +394,53 @@ class LocalBucketStorage {
         console.error('Failed to verify PDF file creation');
       }
       
-      return fileId;
+      // After PDF upload is complete, try to convert it to markdown using LlamaParse
+      // Define the path for the markdown file
+      const markdownFilePath = path.join(this.bucketPath, `${fileId}.md`);
+      
+      let extractionSuccess = false;
+      let extractionError: string | undefined;
+      let textPreview: string | undefined;
+      
+      try {
+        // First check if we already have a markdown version
+        if (isPdfAlreadyParsed(markdownFilePath)) {
+          console.log(`Markdown file already exists for PDF ${fileId}, using existing file`);
+          const markdownContent = await getExistingMarkdownContent(markdownFilePath);
+          extractionSuccess = true;
+          textPreview = markdownContent.substring(0, 100) + '...';
+        } else {
+          // If not, try to use LlamaParse to convert PDF to markdown
+          console.log(`Using LlamaParse for file: ${fileId}`);
+          
+          try {
+            const markdownContent = await parsePdfToMarkdown(filePath, markdownFilePath);
+            extractionSuccess = true;
+            textPreview = markdownContent.substring(0, 100) + '...';
+          } catch (parseError: any) {
+            console.error(`LlamaParse failed, falling back to basic extraction: ${parseError.message}`);
+            extractionError = `LlamaParse API error: ${parseError.message}`;
+            
+            // Fall back to basic extraction
+            const extractedText = await extractTextFromPdfBuffer(buffer);
+            textPreview = extractedText.substring(0, 100) + '...';
+            
+            // Save the extracted text as markdown for future use
+            await writeFile(markdownFilePath, extractedText);
+            console.log(`Saved fallback extracted text to: ${markdownFilePath}`);
+          }
+        }
+      } catch (conversionError: any) {
+        console.error('Error during PDF text extraction/conversion:', conversionError);
+        extractionError = `Text extraction failed: ${conversionError.message}`;
+      }
+      
+      return { 
+        fileId,
+        extractionSuccess,
+        extractionError,
+        textPreview
+      };
     } catch (error: any) {
       console.error('Error uploading PDF to bucket:', error);
       throw new Error(`Failed to upload PDF: ${error?.message || 'Unknown error'}`);
@@ -470,7 +521,8 @@ class LocalBucketStorage {
    * 
    * For known test files (the invoice examples), we'll return predefined text data
    * to ensure consistent and accurate evaluation results.
-   * For other PDFs, we'll use LlamaParse to convert them to markdown.
+   * For other PDFs, we'll first check for a converted markdown file, then try to use LlamaParse,
+   * and finally fall back to basic extraction if needed.
    * 
    * @param fileId The file ID
    * @returns Extracted text from the PDF

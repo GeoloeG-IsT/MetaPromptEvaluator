@@ -273,35 +273,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate a file ID if not provided
       const id = fileId || `invoice_${Math.random().toString(36).substring(2, 15)}`;
       
-      // Upload the PDF to the bucket
-      const uploadedFileId = await bucketStorage.uploadPdf(pdfData, id);
-      console.log("PDF uploaded successfully with ID:", uploadedFileId);
+      // Upload the PDF to the bucket and process it (extract text)
+      const result = await bucketStorage.uploadPdf(pdfData, id);
+      console.log("PDF uploaded successfully with ID:", result.fileId);
       
-      // Try to extract text from the PDF to check if it's valid and preprocessable
-      try {
-        console.log("Attempting to extract text from the uploaded PDF to verify it's preprocessable");
-        const extractedText = await bucketStorage.extractTextFromPdf(uploadedFileId);
-        const textPreview = extractedText.substring(0, 100) + (extractedText.length > 100 ? '...' : '');
-        console.log(`Successfully extracted text (preview): ${textPreview}`);
-        
-        // Return both the file ID and a preview of the extracted text
-        res.status(201).json({
-          fileId: uploadedFileId,
-          textPreview: textPreview,
-          extractionSuccess: true
-        });
-      } catch (extractError: any) {
-        console.error("Warning: Failed to extract text from PDF:", extractError?.message || 'Unknown error');
-        // Still return success for the upload, but indicate that extraction failed
-        res.status(201).json({
-          fileId: uploadedFileId,
-          extractionSuccess: false,
-          extractionError: extractError?.message || 'Failed to extract text from PDF'
-        });
-      }
-    } catch (error) {
+      // Return the upload result with extraction status
+      res.status(201).json(result);
+    } catch (error: any) {
       console.error("Error uploading PDF:", error);
-      res.status(500).json({ message: "Failed to upload PDF file" });
+      res.status(500).json({ message: `Failed to upload PDF file: ${error.message}` });
     }
   });
   
