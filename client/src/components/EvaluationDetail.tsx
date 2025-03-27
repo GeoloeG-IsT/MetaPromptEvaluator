@@ -154,8 +154,12 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
 
   // Handle save button click
   const handleSave = () => {
+    if (!evaluation) return;
+    
     updateEvaluationMutation.mutate({
-      userPrompt
+      userPrompt,
+      promptId: evaluation.promptId,
+      datasetId: evaluation.datasetId
     });
   };
   
