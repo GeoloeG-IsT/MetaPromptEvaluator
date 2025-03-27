@@ -91,7 +91,7 @@ export async function evaluatePrompt(
     console.log(`Input Type: ${item.inputType}`);
     console.log(`Has Input Image: ${!!item.inputImage}`);
     console.log(`Has Input Text: ${!!item.inputText}`);
-    console.log(`Expected Response: ${item.validResponse ? item.validResponse.substring(0, 50) + "..." : "None"}`);
+    console.log(`Expected Response: ${item.validResponse}`);
     
     try {
       // Generate a response using the processed meta prompt and the input (image or text)
@@ -107,7 +107,7 @@ export async function evaluatePrompt(
         generatedResponse = "Error: Dataset item has no valid input";
       }
       
-      console.log(`Generated Response (first 100 chars): ${generatedResponse ? generatedResponse.substring(0, 100) + "..." : "None"}`);
+      console.log(`Generated Response (first 100 chars): ${generatedResponse}`);
       
       // Evaluate the generated response against the valid response
       const evaluationResult = await evaluateResponse(
@@ -143,10 +143,10 @@ export async function evaluatePrompt(
  * Generate a response for an image input using the OpenAI vision API.
  * This uses the processed meta prompt as the system message and the image as the user message.
  */
-export async function generateImageResponse(metaPrompt: string, imageUrl: string, userPrompt?: string): Promise<string> {
+export async function generateImageResponse(finalPrompt: string, imageUrl: string, userPrompt?: string): Promise<string> {
   try {
     console.log("IMAGE RESPONSE GENERATION");
-    console.log("Meta Prompt:", metaPrompt.substring(0, 100) + "...");
+    console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
     console.log("Image URL:", imageUrl);
 
     // Prepare the messages for the API call
@@ -155,7 +155,7 @@ export async function generateImageResponse(metaPrompt: string, imageUrl: string
       messages: [
         {
           role: "system",
-          content: metaPrompt
+          content: finalPrompt
         },
         {
           role: "user",
@@ -179,7 +179,7 @@ export async function generateImageResponse(metaPrompt: string, imageUrl: string
     });
 
     const result = response.choices[0].message.content || "Failed to generate response for image";
-    console.log("Generated response (preview):", result.substring(0, 50) + "...");
+    console.log("Generated response (preview):", result);
     return result;
   } catch (error: any) {
     console.error("Error generating image response:", error);
@@ -192,10 +192,10 @@ export async function generateImageResponse(metaPrompt: string, imageUrl: string
  * Generate a response for a text input using the OpenAI API.
  * This uses the processed meta prompt as the system message and the text as the user message.
  */
-export async function generateTextResponse(metaPrompt: string, inputText: string, userPrompt?: string): Promise<string> {
+export async function generateTextResponse(finalPrompt: string, inputText: string, userPrompt?: string): Promise<string> {
   try {
     console.log("TEXT RESPONSE GENERATION");
-    console.log("Meta Prompt:", metaPrompt.substring(0, 100) + "...");
+    console.log("Final Prompt:", finalPrompt.substring(0, 100) + "...");
     console.log("Input Text:", inputText.substring(0, 100) + "...");
     
     // Combine user prompt and input text if both are provided
@@ -208,7 +208,7 @@ export async function generateTextResponse(metaPrompt: string, inputText: string
       messages: [
         {
           role: "system",
-          content: metaPrompt
+          content: finalPrompt
         },
         {
           role: "user",
@@ -220,7 +220,7 @@ export async function generateTextResponse(metaPrompt: string, inputText: string
     });
 
     const result = response.choices[0].message.content || "Failed to generate response for text";
-    console.log("Generated response (preview):", result.substring(0, 50) + "...");
+    console.log("Generated response (preview):", result);
     return result;
   } catch (error: any) {
     console.error("Error generating text response:", error);
