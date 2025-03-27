@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Dataset, DatasetItem } from "@shared/schema";
+import { uploadPdf, getPdf, generatePdfId } from "@/lib/pdfUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { 
@@ -175,8 +176,10 @@ export default function Datasets() {
       id: number;
       inputType: string;
       inputText?: string;
-      inputImage?: string;
+      inputImage?: string | null;
+      inputPdf?: string | null;
       validResponse: string;
+      datasetId?: number;
     }) => {
       console.log("Updating dataset item:", data);
       // Use the new PUT endpoint for updating dataset items
@@ -322,15 +325,43 @@ export default function Datasets() {
       return;
     }
     
-    // If we have an uploaded image or PDF, use that instead of the URL/ID
-    const itemToAdd = {
-      ...newDatasetItem,
-      inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : null,
-      inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : null,
-      datasetId: selectedDataset.id,
-    };
-    
-    addDatasetItemMutation.mutate(itemToAdd);
+    // If we have an uploaded image or PDF, handle the upload and then add the item
+    if (newDatasetItem.inputType === "pdf" && uploadedPdf) {
+      // Generate a PDF ID if one doesn't exist
+      const pdfId = newDatasetItem.inputPdf || generatePdfId();
+      
+      // First upload the PDF to the bucket
+      uploadPdf(uploadedPdf, pdfId)
+        .then((fileId) => {
+          // After successful upload, create the dataset item with the file ID
+          const itemToAdd = {
+            ...newDatasetItem,
+            inputImage: null,
+            inputPdf: fileId,
+            datasetId: selectedDataset.id,
+          };
+          
+          addDatasetItemMutation.mutate(itemToAdd);
+        })
+        .catch((error) => {
+          console.error("PDF upload error:", error);
+          toast({
+            title: "PDF upload failed",
+            description: "There was an error uploading the PDF. Please try again.",
+            variant: "destructive"
+          });
+        });
+    } else {
+      // For image or text inputs, add directly
+      const itemToAdd = {
+        ...newDatasetItem,
+        inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : null,
+        inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : null,
+        datasetId: selectedDataset.id,
+      };
+      
+      addDatasetItemMutation.mutate(itemToAdd);
+    }
   };
   
   const viewDataset = (dataset: Dataset) => {
@@ -345,12 +376,13 @@ export default function Datasets() {
     // Reset the form data
     setNewDatasetItem({
       inputType: "text",
-        inputPdf: "",
+      inputPdf: "",
       inputText: "",
       inputImage: "",
       validResponse: "",
     });
     setUploadedImage(null);
+    setUploadedPdf(null);
     setIsAddItemDialogOpen(true);
   };
   
@@ -432,17 +464,47 @@ export default function Datasets() {
       return;
     }
     
-    // Prepare the updated item data
-    const itemToUpdate = {
-      id: selectedDatasetItem.id,
-      ...newDatasetItem,
-      inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : null,
-      inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : null,
-      datasetId: selectedDataset.id,
-    };
-    
-    // Call the update mutation
-    updateDatasetItemMutation.mutate(itemToUpdate);
+    // If we have a newly uploaded PDF, handle the upload before updating the item
+    if (newDatasetItem.inputType === "pdf" && uploadedPdf && uploadedPdf !== "placeholder") {
+      // Generate a PDF ID if one doesn't exist or use the existing one
+      const pdfId = newDatasetItem.inputPdf || generatePdfId();
+      
+      // First upload the PDF to the bucket
+      uploadPdf(uploadedPdf, pdfId)
+        .then((fileId) => {
+          // After successful upload, update the dataset item with the file ID
+          const itemToUpdate = {
+            id: selectedDatasetItem.id,
+            ...newDatasetItem,
+            inputImage: null,
+            inputPdf: fileId,
+            datasetId: selectedDataset.id,
+          };
+          
+          // Call the update mutation
+          updateDatasetItemMutation.mutate(itemToUpdate);
+        })
+        .catch((error: any) => {
+          console.error("PDF upload error:", error);
+          toast({
+            title: "PDF upload failed",
+            description: "There was an error uploading the PDF. Please try again.",
+            variant: "destructive"
+          });
+        });
+    } else {
+      // For image, text, or unchanged PDF inputs, update directly
+      const itemToUpdate = {
+        id: selectedDatasetItem.id,
+        ...newDatasetItem,
+        inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : null,
+        inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : null,
+        datasetId: selectedDataset.id,
+      };
+      
+      // Call the update mutation
+      updateDatasetItemMutation.mutate(itemToUpdate);
+    }
   };
   
   const handleDeleteItem = (id: number) => {
@@ -584,9 +646,47 @@ export default function Datasets() {
                             />
                           </div>
                         ) : item.inputType === 'pdf' && item.inputPdf ? (
-                          <div className="p-2 bg-gray-50 rounded text-sm flex items-center gap-2">
+                          <div 
+                            className="p-2 bg-gray-50 rounded text-sm flex items-center gap-2 cursor-pointer hover:bg-gray-100"
+                            onClick={() => {
+                              // When clicked, try to get the PDF content and open in a new tab
+                              toast({
+                                title: "Loading PDF",
+                                description: "Retrieving PDF document..."
+                              });
+                              
+                              getPdf(item.inputPdf).then(pdfData => {
+                                // Create a new window/tab with the PDF content
+                                const pdfWindow = window.open();
+                                if (pdfWindow) {
+                                  pdfWindow.document.write(`
+                                    <iframe 
+                                      width="100%" 
+                                      height="100%" 
+                                      src="${pdfData}" 
+                                      style="border: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
+                                    ></iframe>
+                                  `);
+                                } else {
+                                  toast({
+                                    title: "Popup blocked",
+                                    description: "Please allow popups to view PDF documents",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }).catch(error => {
+                                console.error("Error loading PDF:", error);
+                                toast({
+                                  title: "PDF Error",
+                                  description: "Failed to load PDF document",
+                                  variant: "destructive"
+                                });
+                              });
+                            }}
+                          >
                             <span className="material-icons text-red-500">picture_as_pdf</span>
                             <span className="font-medium truncate">{item.inputPdf}</span>
+                            <span className="text-xs text-blue-500">(Click to view)</span>
                           </div>
                         ) : (
                           <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
