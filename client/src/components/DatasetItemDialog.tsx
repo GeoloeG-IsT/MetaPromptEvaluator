@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import UploadDropzone from '@/components/UploadDropzone';
+import UploadDropzone from './UploadDropzone';
 
 interface DatasetItemDialogProps {
   isOpen: boolean;
@@ -85,8 +85,11 @@ export default function DatasetItemDialog({
   // Upload PDF to server and get fileId
   const uploadPdfMutation = useMutation({
     mutationFn: async (pdfData: string) => {
-      return await apiRequest('POST', '/api/pdf-upload', {
-        fileData: pdfData.split(',')[1], // Remove data URL prefix
+      // Extract the base64 data from the data URL
+      const base64Data = pdfData.split(',')[1];
+      
+      return await apiRequest<{fileId: string, extractionSuccess?: boolean}>('POST', '/api/pdf-upload', {
+        fileData: base64Data,
         fileName: pdfName
       });
     },

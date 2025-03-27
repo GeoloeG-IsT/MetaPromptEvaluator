@@ -319,21 +319,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PDF management endpoints
   app.post("/api/pdf-upload", async (req: Request, res: Response) => {
     try {
-      const { pdfData, fileId } = req.body;
+      const { fileData, fileName } = req.body;
       
-      if (!pdfData) {
+      if (!fileData) {
         console.error("PDF Upload Error: No PDF data provided");
         return res.status(400).json({ message: "PDF data is required" });
       }
       
-      console.log("Received PDF upload request with file ID:", fileId || "(will be generated)");
-      console.log("PDF data length:", pdfData.length, "characters");
-      
       // Generate a file ID if not provided
-      const id = fileId || `invoice_${Math.random().toString(36).substring(2, 15)}`;
+      const fileId = `invoice_${Math.random().toString(36).substring(2, 15)}`;
+      
+      console.log("Received PDF upload request with name:", fileName);
+      console.log("PDF data length:", fileData.length, "characters");
+      console.log("Generated file ID:", fileId);
       
       // Upload the PDF to the bucket and process it (extract text)
-      const result = await bucketStorage.uploadPdf(pdfData, id);
+      const result = await bucketStorage.uploadPdf(fileData, fileId);
       console.log("PDF uploaded successfully with ID:", result.fileId);
       
       // Return the upload result with extraction status
