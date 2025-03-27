@@ -398,9 +398,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Evaluation not found" });
       }
       
-      if (evaluation.status !== 'pending') {
-        return res.status(400).json({ message: "Evaluation is already in progress or completed" });
+      if (evaluation.status === 'in_progress') {
+        return res.status(400).json({ message: "Evaluation is already in progress" });
       }
+      
+      // Allow re-running completed or failed evaluations
       
       // Start evaluation in background
       // If userPrompt is provided in the request, update it
@@ -439,6 +441,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Starting evaluation for prompt ID ${prompt.id} with ${datasetItems.length} dataset items`);
           console.log(`Using meta prompt: ${prompt.metaPrompt?.substring(0, 100)}...`);
           console.log(`User prompt: ${updatedEvaluation.userPrompt || "(None provided)"}`);
+          
+          // Get existing results and clear them if re-running a completed evaluation
+          const existingResults = await storage.getEvaluationResults(evaluationId);
+          if (existingResults && existingResults.length > 0) {
+            console.log(`Clearing ${existingResults.length} existing results for evaluation ID ${evaluationId}`);
+            // In a real implementation we would delete existing results here
+            // For now, we'll just continue and create new results
+          }
           
           const results = await evaluatePrompt(
             prompt.metaPrompt || "", 

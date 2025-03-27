@@ -76,6 +76,27 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
     enabled: !!evaluation?.promptId,
   });
   
+  // Get the final prompt (expanded with userPrompt)
+  const { data: finalPromptData, isLoading: finalPromptLoading } = useQuery({
+    queryKey: ['/api/generate-final-prompt', prompt?.metaPrompt, evaluation?.userPrompt],
+    queryFn: async () => {
+      if (!prompt?.metaPrompt) {
+        return { finalPrompt: "Meta prompt not available" };
+      }
+      const res = await fetch('/api/generate-final-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          metaPrompt: prompt.metaPrompt, 
+          userPrompt: evaluation?.userPrompt || '' 
+        })
+      });
+      if (!res.ok) throw new Error('Failed to generate final prompt');
+      return res.json();
+    },
+    enabled: !!prompt?.metaPrompt && !!evaluation,
+  });
+  
   // Fetch associated dataset
   const { data: dataset } = useQuery<Dataset>({
     queryKey: ['/api/datasets', evaluation?.datasetId],
@@ -246,27 +267,24 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
         <div className="flex gap-2">
           {!isEditing ? (
             <>
-              {onEdit && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setUserPrompt(evaluation.userPrompt || '');
-                    setIsEditing(true);
-                  }}
-                >
-                  <span className="material-icons text-sm mr-1">edit</span>
-                  Edit
-                </Button>
-              )}
-              {(evaluation.status === 'pending' || evaluation.status === 'failed') && (
-                <Button 
-                  onClick={() => runEvaluationMutation.mutate()}
-                  disabled={runEvaluationMutation.isPending}
-                >
-                  <span className="material-icons text-sm mr-1">play_arrow</span>
-                  {runEvaluationMutation.isPending ? 'Starting...' : 'Run Evaluation'}
-                </Button>
-              )}
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setUserPrompt(evaluation.userPrompt || '');
+                  setIsEditing(true);
+                }}
+              >
+                <span className="material-icons text-sm mr-1">edit</span>
+                Edit User Prompt
+              </Button>
+              <Button 
+                onClick={() => runEvaluationMutation.mutate()}
+                disabled={runEvaluationMutation.isPending || evaluation.status === 'in_progress'}
+              >
+                <span className="material-icons text-sm mr-1">play_arrow</span>
+                {runEvaluationMutation.isPending ? 'Starting...' : 
+                 (evaluation.status === 'completed' ? 'Re-run Evaluation' : 'Run Evaluation')}
+              </Button>
             </>
           ) : (
             <>
@@ -342,6 +360,18 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
                         ? formatDistanceToNow(new Date(evaluation.completedAt), { addSuffix: true })
                         : "Not completed"}
                     </span>
+                  </div>
+                  <div className="flex flex-col pt-2">
+                    <span className="text-gray-500 mb-1">Final Prompt:</span>
+                    {finalPromptLoading ? (
+                      <div className="flex items-center justify-center p-4">
+                        <span className="material-icons animate-spin text-sm">refresh</span>
+                      </div>
+                    ) : (
+                      <span className="font-medium text-sm bg-gray-50 p-2 rounded break-words">
+                        {finalPromptData?.finalPrompt || "No final prompt available"}
+                      </span>
+                    )}
                   </div>
                 </>
               )}
