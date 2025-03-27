@@ -71,31 +71,14 @@ export async function generateFinalPrompt(
   userPrompt: string,
 ): Promise<string> {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: metaPrompt
-        },
-        {
-          role: "user",
-          content: userPrompt
-        }
-      ],
-      temperature: 0.0,
-      max_tokens: 2048
-    });
-
-    let result = response.choices[0].message.content || "Failed to generate meta prompt";
-    
-    // Clean the response content
-    result = cleanResponseContent(result);
-    
-    return result;
+    // Simply replace the placeholder with the user prompt
+    if (userPrompt) {
+      return metaPrompt.replace(/{{user_prompt}}/g, userPrompt);
+    }
+    return metaPrompt;
   } catch (error) {
-    console.error("Error calling OpenAI:", error);
-    throw new Error("Failed to generate meta prompt");
+    console.error("Error generating final prompt:", error);
+    throw new Error("Failed to generate final prompt");
   }
 }
 
