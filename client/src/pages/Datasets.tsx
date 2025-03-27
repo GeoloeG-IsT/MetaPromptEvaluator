@@ -336,7 +336,7 @@ export default function Datasets() {
           // After successful upload, create the dataset item with the file ID
           const itemToAdd = {
             ...newDatasetItem,
-            inputImage: null,
+            inputImage: "",
             inputPdf: fileId,
             datasetId: selectedDataset.id,
           };
@@ -355,8 +355,8 @@ export default function Datasets() {
       // For image or text inputs, add directly
       const itemToAdd = {
         ...newDatasetItem,
-        inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : null,
-        inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : null,
+        inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : "",
+        inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : "",
         datasetId: selectedDataset.id,
       };
       
@@ -476,7 +476,7 @@ export default function Datasets() {
           const itemToUpdate = {
             id: selectedDatasetItem.id,
             ...newDatasetItem,
-            inputImage: null,
+            inputImage: "",
             inputPdf: fileId,
             datasetId: selectedDataset.id,
           };
@@ -497,8 +497,8 @@ export default function Datasets() {
       const itemToUpdate = {
         id: selectedDatasetItem.id,
         ...newDatasetItem,
-        inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : null,
-        inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : null,
+        inputImage: newDatasetItem.inputType === "image" ? (uploadedImage || newDatasetItem.inputImage) : "",
+        inputPdf: newDatasetItem.inputType === "pdf" ? (newDatasetItem.inputPdf || "") : "",
         datasetId: selectedDataset.id,
       };
       
@@ -633,7 +633,7 @@ export default function Datasets() {
                         ) : item.inputType === 'image' ? (
                           <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
                             <img 
-                              src={item.inputImage} 
+                              src={item.inputImage || ''} 
                               alt="Input" 
                               className="max-h-full max-w-full object-cover"
                               onError={(e) => {
@@ -655,33 +655,35 @@ export default function Datasets() {
                                 description: "Retrieving PDF document..."
                               });
                               
-                              getPdf(item.inputPdf).then(pdfData => {
-                                // Create a new window/tab with the PDF content
-                                const pdfWindow = window.open();
-                                if (pdfWindow) {
-                                  pdfWindow.document.write(`
-                                    <iframe 
-                                      width="100%" 
-                                      height="100%" 
-                                      src="${pdfData}" 
-                                      style="border: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
-                                    ></iframe>
-                                  `);
-                                } else {
+                              if (item.inputPdf) {
+                                getPdf(item.inputPdf).then(pdfData => {
+                                  // Create a new window/tab with the PDF content
+                                  const pdfWindow = window.open();
+                                  if (pdfWindow) {
+                                    pdfWindow.document.write(`
+                                      <iframe 
+                                        width="100%" 
+                                        height="100%" 
+                                        src="${pdfData}" 
+                                        style="border: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;"
+                                      ></iframe>
+                                    `);
+                                  } else {
+                                    toast({
+                                      title: "Popup blocked",
+                                      description: "Please allow popups to view PDF documents",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }).catch(error => {
+                                  console.error("Error loading PDF:", error);
                                   toast({
-                                    title: "Popup blocked",
-                                    description: "Please allow popups to view PDF documents",
+                                    title: "PDF Error",
+                                    description: "Failed to load PDF document",
                                     variant: "destructive"
                                   });
-                                }
-                              }).catch(error => {
-                                console.error("Error loading PDF:", error);
-                                toast({
-                                  title: "PDF Error",
-                                  description: "Failed to load PDF document",
-                                  variant: "destructive"
                                 });
-                              });
+                              }
                             }}
                           >
                             <span className="material-icons text-red-500">picture_as_pdf</span>

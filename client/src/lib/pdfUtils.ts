@@ -25,7 +25,7 @@ export async function uploadPdf(pdfData: string, fileId: string = generatePdfId(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ fileData: pdfData, fileId }),
+      body: JSON.stringify({ pdfData, fileId }),
     });
 
     if (!response.ok) {
@@ -54,7 +54,7 @@ export async function getPdf(fileId: string): Promise<string> {
     }
     
     const result = await response.json();
-    return `data:application/pdf;base64,${result.fileData}`;
+    return `data:application/pdf;base64,${result.pdfData}`;
   } catch (error) {
     console.error('Error getting PDF:', error);
     throw error;
