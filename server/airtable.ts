@@ -144,6 +144,7 @@ export async function importFromAirtable(req: Request, res: Response) {
     const datasetName = "Senior Case Study Data"; // You could extract this from the Airtable name
     const newDataset: InsertDataset = {
       name: datasetName,
+      category: "imported", // Required field
       description: `Imported from Airtable on ${new Date().toISOString()}`,
       userId: 1 // Default user for demo
     };

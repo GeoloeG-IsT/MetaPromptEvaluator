@@ -89,6 +89,7 @@ async function seedDatabase() {
       console.log('Adding sample dataset...');
       const sampleDataset: InsertDataset = {
         name: 'Invoice Data Extraction',
+        category: 'invoices',
         description: 'A collection of invoices for data extraction evaluation',
         userId
       };

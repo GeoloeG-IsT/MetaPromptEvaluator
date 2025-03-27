@@ -97,6 +97,7 @@ export class DatabaseStorage implements IStorage {
     const updateValues: Record<string, any> = {};
     
     if (dataset.name !== undefined) updateValues.name = dataset.name;
+    if (dataset.category !== undefined) updateValues.category = dataset.category;
     if (dataset.description !== undefined) updateValues.description = dataset.description;
     if (dataset.userId !== undefined) updateValues.userId = dataset.userId;
     

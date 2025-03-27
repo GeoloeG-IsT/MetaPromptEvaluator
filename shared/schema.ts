@@ -55,6 +55,7 @@ export type DatasetItem = typeof datasetItems.$inferSelect;
 export const datasets = pgTable("datasets", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  category: text("category").notNull(),
   description: text("description"),
   userId: integer("user_id"),
   itemCount: integer("item_count").default(0),
