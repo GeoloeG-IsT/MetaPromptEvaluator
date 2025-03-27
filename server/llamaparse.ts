@@ -316,15 +316,17 @@ async function waitForJobCompletion(
         `Job status: ${jobStatus.status}${jobStatus.progress ? `, progress: ${jobStatus.progress.toFixed(2)}%` : ""}`,
       );
 
-      if (jobStatus.status === "completed") {
+      if (
+        jobStatus.status === "SUCCESS" ||
+        jobStatus.status === "PARTIAL_SUCCESS"
+      ) {
         console.log("Job completed successfully");
         return;
-      } else if (jobStatus.status === "failed") {
+      } else if (jobStatus.status === "ERROR") {
         throw new Error("Job failed");
-      } else if (
-        jobStatus.status === "in_progress" ||
-        jobStatus.status === "pending"
-      ) {
+      } else if (jobStatus.status === "CANCELLED") {
+        throw new Error("Job cancelled");
+      } else if (jobStatus.status === "PENDING") {
         // Wait before checking again
         await new Promise((resolve) => setTimeout(resolve, RETRY_TIMEOUT_MS));
         retries++;

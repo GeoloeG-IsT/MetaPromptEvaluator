@@ -164,7 +164,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // First, get all dataset items and delete them
       const datasetItems = await storage.getDatasetItems(id);
+      console.log(`Deleting ${datasetItems.length} items from dataset ${id}`);
+      
+      // Delete all dataset items (including associated PDFs and markdown files)
       for (const item of datasetItems) {
+        // If this item has a PDF, delete both the PDF and markdown files
+        if (item.inputType === 'pdf' && item.inputPdf) {
+          try {
+            console.log(`Deleting PDF file for item ${item.id}: ${item.inputPdf}`);
+            await bucketStorage.deletePdf(item.inputPdf);
+            console.log('PDF and markdown files deleted successfully');
+          } catch (pdfError) {
+            console.error('Error deleting PDF file:', pdfError);
+            // Continue with the item deletion even if PDF deletion fails
+          }
+        }
+        
+        // Delete the dataset item from the database
         await storage.deleteDatasetItem(item.id);
       }
       
@@ -177,6 +193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(404).json({ message: "Dataset not found" });
       }
     } catch (error) {
+      console.error('Error deleting dataset:', error);
       res.status(500).json({ message: "Failed to delete dataset" });
     }
   });
@@ -218,6 +235,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/dataset-items/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // Get the dataset item before deletion to check if it has a PDF file
+      const item = await storage.getDatasetItem(id);
+      if (!item) {
+        return res.status(404).json({ message: "Dataset item not found" });
+      }
+      
+      // If this item has a PDF, delete both the PDF and markdown files
+      if (item.inputType === 'pdf' && item.inputPdf) {
+        try {
+          console.log(`Deleting PDF file for item ${id}: ${item.inputPdf}`);
+          await bucketStorage.deletePdf(item.inputPdf);
+          console.log('PDF and markdown files deleted successfully');
+        } catch (pdfError) {
+          console.error('Error deleting PDF file:', pdfError);
+          // Continue with the item deletion even if PDF deletion fails
+        }
+      }
+      
+      // Delete the dataset item from the database
       const success = await storage.deleteDatasetItem(id);
       if (success) {
         res.status(200).json({ message: "Dataset item deleted successfully" });
@@ -225,6 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(404).json({ message: "Dataset item not found" });
       }
     } catch (error) {
+      console.error('Error deleting dataset item:', error);
       res.status(500).json({ message: "Failed to delete dataset item" });
     }
   });
@@ -238,6 +276,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingItem = await storage.getDatasetItem(id);
       if (!existingItem) {
         return res.status(404).json({ message: "Dataset item not found" });
+      }
+      
+      // If the item had a PDF file, and the input type or PDF file is changing,
+      // delete the old PDF file and markdown
+      if (existingItem.inputType === 'pdf' && existingItem.inputPdf) {
+        // Check if the input type is changing or the PDF file is changing
+        const isInputTypeChanging = req.body.inputType && req.body.inputType !== 'pdf';
+        const isPdfFileChanging = req.body.inputPdf && req.body.inputPdf !== existingItem.inputPdf;
+        
+        if (isInputTypeChanging || isPdfFileChanging) {
+          try {
+            console.log(`Deleting old PDF file for updated item ${id}: ${existingItem.inputPdf}`);
+            await bucketStorage.deletePdf(existingItem.inputPdf);
+            console.log('Old PDF and markdown files deleted successfully');
+          } catch (pdfError) {
+            console.error('Error deleting old PDF file during update:', pdfError);
+            // Continue with the update even if PDF deletion fails
+          }
+        }
       }
       
       // Delete the old item
