@@ -28,7 +28,12 @@ export async function generateLLMResponse(
       max_tokens: 1000
     });
 
-    return response.choices[0].message.content || "Failed to generate response";
+    let result = response.choices[0].message.content || "Failed to generate response";
+    
+    // Remove any "json/" prefix that might be present in the response
+    result = result.replace(/^json\//, '');
+    
+    return result;
   } catch (error) {
     console.error("Error generating LLM response:", error);
     throw new Error("Failed to generate response from LLM");
@@ -56,7 +61,12 @@ export async function generateFinalPrompt(
       max_tokens: 2048
     });
 
-    return response.choices[0].message.content || "Failed to generate meta prompt";
+    let result = response.choices[0].message.content || "Failed to generate meta prompt";
+    
+    // Remove any "json/" prefix that might be present in the response
+    result = result.replace(/^json\//, '');
+    
+    return result;
   } catch (error) {
     console.error("Error calling OpenAI:", error);
     throw new Error("Failed to generate meta prompt");
@@ -185,7 +195,11 @@ export async function generateImageResponse(finalPrompt: string, imageUrl: strin
       max_tokens: 800
     });
 
-    const result = response.choices[0].message.content || "Failed to generate response for image";
+    let result = response.choices[0].message.content || "Failed to generate response for image";
+    
+    // Remove any "json/" prefix that might be present in the response
+    result = result.replace(/^json\//, '');
+    
     console.log("Generated response (preview):", result.substring(0, 100) + "...");
     return result;
   } catch (error: any) {
@@ -221,7 +235,11 @@ export async function generateTextResponse(finalPrompt: string, inputText: strin
       max_tokens: 800
     });
 
-    const result = response.choices[0].message.content || "Failed to generate response for text";
+    let result = response.choices[0].message.content || "Failed to generate response for text";
+    
+    // Remove any "json/" prefix that might be present in the response
+    result = result.replace(/^json\//, '');
+    
     console.log("Generated response (preview):", result.substring(0, 100) + "...");
     return result;
   } catch (error: any) {
@@ -317,9 +335,13 @@ export async function evaluateResponse(
     const content = response.choices[0].message.content || "{}";
     console.log("Raw evaluation result:", content);
     
+    // Remove any "json/" prefix that might be present in the response
+    const cleanedContent = content.replace(/^json\//, '');
+    console.log("Cleaned content:", cleanedContent);
+    
     let result;
     try {
-      result = JSON.parse(content);
+      result = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error("Error parsing evaluation result JSON:", parseError);
       return {
