@@ -8,113 +8,305 @@ import { spawn } from 'child_process';
 const BUCKET_NAME = 'MetaPromptEvaluatorBucket';
 
 /**
- * Extract text from a PDF buffer using enhanced methods
+ * Extract text from a PDF buffer using advanced PDF parsing techniques
  * 
- * This implementation uses multiple approaches to try to extract text:
- * 1. Look for text objects with improved regex patterns
- * 2. Search for text stream objects
- * 3. Check for plaintext sections
+ * This implementation uses multiple specialized approaches to extract text from PDFs:
+ * 1. PDF structure parsing (looking for text objects, streams, and fonts)
+ * 2. Multiple text extraction patterns tailored to different PDF structures
+ * 3. Specialized handling for different types of content encoding
  * 
- * For production use, consider integrating a dedicated PDF parsing library.
+ * For production use, consider integrating a dedicated PDF parsing library like pdf2json or pdf.js.
  * 
  * @param buffer The PDF buffer
  * @returns Extracted text or error message
  */
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   try {
-    console.log("Attempting to extract text from PDF using enhanced extraction methods");
+    console.log("Attempting to extract text from PDF using advanced extraction methods");
     
-    // Use multiple approaches to extract text
+    // Use multiple approaches for extraction with different techniques
     const extractionResults = [];
     
-    // Method 1: Convert buffer to string and look for text patterns
-    const content = buffer.toString('utf-8', 0, Math.min(buffer.length, 20000));
+    // Get PDF content as string for regex-based extraction
+    // We look at a larger portion of the file to catch more text
+    const content = buffer.toString('utf-8', 0, Math.min(buffer.length, 50000));
     
-    // Method 1A: Extract text objects using regex patterns
+    // APPROACH 1: PDF TEXT OBJECT EXTRACTION
+    console.log("Approach 1: Extracting text from PDF text objects (BT/ET blocks)");
     let textFromTextObjects = '';
+    
+    // PDF text objects are enclosed in BT (Begin Text) and ET (End Text) operators
     const textObjectMatches = content.match(/BT\s*([^]*?)\s*ET/g) || [];
     
     if (textObjectMatches.length > 0) {
       console.log(`Found ${textObjectMatches.length} text objects in PDF`);
+      
       for (const textObj of textObjectMatches) {
-        // Extract string literals within parentheses
-        const stringMatches = textObj.match(/\(([^\)]+)\)/g) || [];
-        if (stringMatches.length > 0) {
-          // Remove parentheses and join
-          const extractedStrings = stringMatches
-            .map(match => match.substring(1, match.length - 1))
+        // Extract text strings - these are usually in parentheses or angle brackets
+        
+        // 1. Extract text in parentheses (regular strings)
+        const parenthesesMatches = textObj.match(/\(([^\)\\]*(?:\\.[^\)\\]*)*)\)/g) || [];
+        
+        // 2. Extract text in angle brackets (hex-encoded strings)
+        const angleMatches = textObj.match(/<([0-9a-fA-F]+)>/g) || [];
+        
+        // Process parentheses strings
+        if (parenthesesMatches.length > 0) {
+          const extractedStrings = parenthesesMatches
+            .map(match => {
+              // Remove outer parentheses
+              let text = match.substring(1, match.length - 1);
+              
+              // Decode PDF escape sequences
+              text = text
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\r')
+                .replace(/\\t/g, '\t')
+                .replace(/\\\(/g, '(')
+                .replace(/\\\)/g, ')')
+                .replace(/\\\\/g, '\\')
+                .replace(/\\(\d{3})/g, (_, octal) => 
+                  String.fromCharCode(parseInt(octal, 8))
+                );
+              
+              return text;
+            })
             .join(' ');
+          
           textFromTextObjects += extractedStrings + '\n';
+        }
+        
+        // Process hex strings in angle brackets
+        if (angleMatches.length > 0) {
+          const hexStrings = angleMatches
+            .map(match => {
+              // Remove angle brackets
+              const hex = match.substring(1, match.length - 1);
+              
+              // Convert hex pairs to characters
+              let text = '';
+              for (let i = 0; i < hex.length; i += 2) {
+                if (i + 1 < hex.length) {
+                  const charCode = parseInt(hex.substr(i, 2), 16);
+                  text += String.fromCharCode(charCode);
+                }
+              }
+              
+              return text;
+            })
+            .join(' ');
+          
+          textFromTextObjects += hexStrings + '\n';
+        }
+        
+        // Extract text positioning commands
+        const positioningCommands = textObj.match(/([0-9.-]+\s+){5,6}\s*T[Jjcm*]/g) || [];
+        if (positioningCommands.length > 0) {
+          console.log(`Found ${positioningCommands.length} text positioning commands`);
         }
       }
     }
     
+    // Clean up and add to results if we found content
     if (textFromTextObjects.trim().length > 0) {
+      textFromTextObjects = textFromTextObjects
+        .replace(/\s+/g, ' ')
+        .replace(/\r\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      
       extractionResults.push(textFromTextObjects);
     }
     
-    // Method 1B: Extract text streams
+    // APPROACH 2: CONTENT STREAM EXTRACTION
+    console.log("Approach 2: Extracting text from PDF content streams");
     let textFromStreams = '';
-    const streamMatches = content.match(/stream\s([^]*?)\sendstream/g) || [];
+    
+    // Match stream blocks in PDF
+    const streamMatches = content.match(/stream\r?\n([^]*?)\r?\nendstream/g) || [];
     
     if (streamMatches.length > 0) {
-      console.log(`Found ${streamMatches.length} streams in PDF`);
+      console.log(`Found ${streamMatches.length} content streams in PDF`);
+      
       for (const stream of streamMatches) {
-        // Extract readable text from streams
-        const textLines = stream
-          .replace(/stream\s+/, '')
-          .replace(/\sendstream/, '')
-          .split(/\r?\n/)
-          .filter(line => /[a-zA-Z0-9]{3,}/.test(line)); // Only keep lines with readable content
+        // Clean up stream content
+        const streamContent = stream
+          .replace(/stream\r?\n/, '')
+          .replace(/\r?\nendstream/, '');
         
-        if (textLines.length > 0) {
-          textFromStreams += textLines.join('\n') + '\n';
+        // Look for text markers in content stream
+        const textMarkers = streamContent.match(/(\(([^\)\\]*(?:\\.[^\)\\]*)*)\))|(TJ|Tj|\'|\")/g) || [];
+        
+        if (textMarkers.length > 0) {
+          // Extract strings in parentheses near text rendering operators
+          const stringMatches = streamContent.match(/\(([^\)\\]*(?:\\.[^\)\\]*)*)\)[ \t]*(?:TJ|Tj|\'|\")/g) || [];
+          
+          if (stringMatches.length > 0) {
+            const extractedText = stringMatches
+              .map(match => {
+                // Remove operator and get just the string content
+                const str = match.replace(/[ \t]*(?:TJ|Tj|\'|\")$/, '')
+                  .substring(1, match.length - 1);
+                
+                // Decode PDF escape sequences
+                return str
+                  .replace(/\\n/g, '\n')
+                  .replace(/\\r/g, '\r')
+                  .replace(/\\t/g, '\t')
+                  .replace(/\\\(/g, '(')
+                  .replace(/\\\)/g, ')')
+                  .replace(/\\\\/g, '\\')
+                  .replace(/\\([0-7]{3})/g, (_, octal) => 
+                    String.fromCharCode(parseInt(octal, 8))
+                  );
+              })
+              .join(' ');
+            
+            textFromStreams += extractedText + '\n';
+          }
+        }
+        
+        // Also look for plaintext in the stream (some PDFs have plain text in streams)
+        const plainTextLines = streamContent
+          .split(/\r?\n/)
+          .filter(line => {
+            // Filter for lines that look like readable text
+            return line.length > 4 && 
+                  /[a-zA-Z]{3,}/.test(line) && 
+                  !/^[\x00-\x1F\x7F-\xFF]+$/.test(line) &&
+                  line.split(/[a-zA-Z]/).length > line.length / 6 &&
+                  !/^[0-9a-fA-F\s]+$/.test(line);
+          });
+        
+        if (plainTextLines.length > 0) {
+          textFromStreams += plainTextLines.join('\n') + '\n';
         }
       }
     }
     
+    // Clean up and add to results if we found content
     if (textFromStreams.trim().length > 0) {
+      textFromStreams = textFromStreams
+        .replace(/\s+/g, ' ')
+        .replace(/\r\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      
       extractionResults.push(textFromStreams);
     }
     
-    // Method 1C: Extract plaintext sections
-    // Look for sections that appear to contain readable text
-    const textSections = content
-      .split(/\r?\n/)
-      .filter(line => {
-        // Filter for lines that appear to be readable text
-        // Lines with too many special characters or hex codes are likely not text
-        return line.length > 5 && 
-               /[a-zA-Z]{3,}/.test(line) && 
-               !/^[0-9a-f\s]{10,}$/i.test(line) &&
-               line.split(/[a-zA-Z]/).length > line.length / 5;
-      })
-      .join('\n');
+    // APPROACH 3: PDF OBJECT EXTRACTION
+    console.log("Approach 3: Extracting text from PDF objects");
+    let textFromObjects = '';
     
-    if (textSections.trim().length > 0) {
-      extractionResults.push(textSections);
+    // PDF objects are defined with "obj" and "endobj" markers
+    const objectMatches = content.match(/[0-9]+\s+[0-9]+\s+obj[^]*?endobj/g) || [];
+    
+    if (objectMatches.length > 0) {
+      console.log(`Found ${objectMatches.length} PDF objects`);
+      
+      for (const obj of objectMatches) {
+        // Look for string literals in objects (these often contain metadata or text)
+        const stringMatches = obj.match(/\(([^\)\\]*(?:\\.[^\)\\]*)*)\)/g) || [];
+        
+        if (stringMatches.length > 0) {
+          // Process found strings and extract content
+          const extractedText = stringMatches
+            .map(match => {
+              // Remove parentheses
+              let text = match.substring(1, match.length - 1);
+              
+              // Decode PDF escape sequences
+              text = text
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\r')
+                .replace(/\\t/g, '\t')
+                .replace(/\\\(/g, '(')
+                .replace(/\\\)/g, ')')
+                .replace(/\\\\/g, '\\')
+                .replace(/\\([0-7]{3})/g, (_, octal) => 
+                  String.fromCharCode(parseInt(octal, 8))
+                );
+              
+              return text;
+            })
+            .filter(text => {
+              // Keep only strings that look like readable text (not binary data)
+              return text.length > 3 && 
+                     /[a-zA-Z]{3,}/.test(text) && 
+                     !/^[\x00-\x1F\x7F-\xFF]+$/.test(text);
+            })
+            .join(' ');
+          
+          if (extractedText.trim().length > 0) {
+            textFromObjects += extractedText + '\n';
+          }
+        }
+      }
     }
     
-    // Choose the best result
+    // Clean up and add to results if we found content
+    if (textFromObjects.trim().length > 0) {
+      textFromObjects = textFromObjects
+        .replace(/\s+/g, ' ')
+        .replace(/\r\n/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+      
+      extractionResults.push(textFromObjects);
+    }
+    
+    // APPROACH 4: FONT DICTIONARY EXTRACTION
+    console.log("Approach 4: Extracting text from font dictionaries");
+    let textFromFonts = '';
+    
+    // Font dictionaries often contain information about text encoding
+    const fontMatches = content.match(/\/Font\s*<<[^]*?>>/g) || [];
+    
+    if (fontMatches.length > 0) {
+      console.log(`Found ${fontMatches.length} font dictionaries`);
+      
+      for (const font of fontMatches) {
+        // Extract font name
+        const fontName = font.match(/\/([A-Z0-9]+)\s+/);
+        if (fontName && fontName[1]) {
+          console.log(`Found font: ${fontName[1]}`);
+        }
+        
+        // Look for ToUnicode maps which can help with text extraction
+        const toUnicode = font.match(/\/ToUnicode\s+(\d+\s+\d+\s+R)/);
+        if (toUnicode && toUnicode[1]) {
+          console.log(`Font has ToUnicode map: ${toUnicode[1]}`);
+        }
+      }
+    }
+    
+    // PROCESS AND COMBINE RESULTS
+    
+    // Choose the best result - prioritize based on content amount and quality
     let bestExtraction = '';
     let maxReadableChars = 0;
     
     for (const result of extractionResults) {
       // Count readable characters (letters, numbers, common punctuation)
       const readableChars = (result.match(/[a-zA-Z0-9.,;:'"!?() ]/g) || []).length;
-      if (readableChars > maxReadableChars) {
-        maxReadableChars = readableChars;
+      const wordCount = (result.match(/\b[a-zA-Z]{2,}\b/g) || []).length;
+      
+      // Prefer results with more actual words and readable characters
+      const quality = readableChars + (wordCount * 2);
+      
+      if (quality > maxReadableChars) {
+        maxReadableChars = quality;
         bestExtraction = result;
       }
     }
     
-    // Clean up the extracted text
+    // Final cleanup
     bestExtraction = bestExtraction
-      .replace(/\\n/g, '\n') // Replace escaped newlines
-      .replace(/\\r/g, '')   // Remove carriage returns
-      .replace(/\\t/g, ' ')  // Replace tabs with spaces
-      .replace(/\\\\/g, '\\') // Fix escaped backslashes
-      .replace(/\s{2,}/g, ' ') // Normalize whitespace
+      .replace(/[\u0000-\u001F]/g, '') // Remove control characters
+      .replace(/\\[nrt]/g, ' ')        // Replace escaped chars with space
+      .replace(/\s{2,}/g, ' ')         // Normalize whitespace
+      .replace(/(\n\s*){3,}/g, '\n\n') // Normalize multiple linebreaks
       .trim();
     
     if (!bestExtraction || bestExtraction.trim().length === 0) {
