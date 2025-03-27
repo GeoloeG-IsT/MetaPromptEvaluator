@@ -620,7 +620,12 @@ export default function Datasets() {
                           <div className="flex items-center">
                             <span className="material-icons text-red-600 mr-2 text-lg">picture_as_pdf</span>
                             <div className="text-sm">
-                              <div className="font-medium">{item.inputPdf}</div>
+                              <div className="font-medium">
+                                {item.inputPdf?.startsWith('pdf_') 
+                                  ? item.inputPdf.split('_').slice(1, -1).join('_').replace(/_/g, ' ')
+                                  : item.inputPdf}
+                              </div>
+                              <div className="text-xs text-gray-500">{item.inputPdf}</div>
                               <div className="flex mt-1">
                                 <Button 
                                   variant="ghost" 
@@ -863,8 +868,8 @@ export default function Datasets() {
           name: selectedDataset.name,
           description: selectedDataset.description,
           userId: selectedDataset.userId === undefined ? null : selectedDataset.userId,
-          itemCount: selectedDataset.itemCount,
-          createdAt: selectedDataset.createdAt
+          itemCount: selectedDataset.itemCount || null,
+          createdAt: selectedDataset.createdAt || null
         } : undefined}
       />
       

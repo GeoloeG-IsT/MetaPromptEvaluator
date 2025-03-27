@@ -22,7 +22,7 @@ interface DatasetItemDialogProps {
     description: string | null;
     userId: number | null;
     itemCount: number | null;
-    createdAt: Date | null;
+    createdAt: Date | string | null;
   };
 }
 
@@ -107,7 +107,7 @@ export default function DatasetItemDialog({
       // Show success toast
       toast({
         title: 'PDF uploaded',
-        description: 'The PDF has been uploaded and processed'
+        description: `The PDF "${response.originalFileName}" has been uploaded successfully`
       });
       
       // Continue with dataset item creation

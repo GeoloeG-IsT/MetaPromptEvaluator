@@ -326,8 +326,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "PDF data is required" });
       }
       
-      // Generate a file ID if not provided
-      const fileId = `invoice_${Math.random().toString(36).substring(2, 15)}`;
+      // Generate a safe file ID based on the original filename and a random string
+      const safeFileName = fileName 
+        ? fileName.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30)
+        : 'unnamed';
+      const randomPart = Math.random().toString(36).substring(2, 10);
+      const fileId = `pdf_${safeFileName}_${randomPart}`;
       
       console.log("Received PDF upload request with name:", fileName);
       console.log("PDF data length:", fileData.length, "characters");
@@ -335,10 +339,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Upload the PDF to the bucket and process it (extract text)
       const result = await bucketStorage.uploadPdf(fileData, fileId);
-      console.log("PDF uploaded successfully with ID:", result.fileId);
+      
+      // Include the original filename in the response
+      const response = {
+        ...result,
+        originalFileName: fileName
+      };
+      
+      console.log("PDF uploaded successfully with ID:", response.fileId);
       
       // Return the upload result with extraction status
-      res.status(201).json(result);
+      res.status(201).json(response);
     } catch (error: any) {
       console.error("Error uploading PDF:", error);
       res.status(500).json({ message: `Failed to upload PDF file: ${error.message}` });
