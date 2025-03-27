@@ -564,11 +564,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const { promptId, datasetId, userPrompt } = req.body;
       
+      console.log(`PUT /api/evaluations/${id} body:`, { promptId, datasetId, userPrompt });
+      
       // Ensure the evaluation exists
       const existingEvaluation = await storage.getEvaluation(id);
       if (!existingEvaluation) {
         return res.status(404).json({ message: "Evaluation not found" });
       }
+      
+      console.log("Existing evaluation before update:", {
+        id: existingEvaluation.id,
+        promptId: existingEvaluation.promptId,
+        userPrompt: existingEvaluation.userPrompt,
+        finalPrompt: existingEvaluation.finalPrompt?.substring(0, 50) + "..." 
+      });
       
       // Get the evaluation results before updating
       const evaluationResults = await storage.getEvaluationResults(id);
@@ -591,15 +600,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (datasetId !== undefined) updateData.datasetId = datasetId;
       if (userPrompt !== undefined) updateData.userPrompt = userPrompt;
       
+      console.log("Update data being prepared:", updateData);
+      
       // Compute and update the final prompt
       if (promptId !== undefined || userPrompt !== undefined) {
         // Determine which prompt to use
         const targetPromptId = promptId !== undefined ? promptId : existingEvaluation.promptId;
         const targetUserPrompt = userPrompt !== undefined ? userPrompt : existingEvaluation.userPrompt;
         
+        console.log("Creating final prompt with:", { 
+          targetPromptId, 
+          targetUserPrompt,
+          isUserPromptProvided: userPrompt !== undefined
+        });
+        
         // Get the meta prompt
         const prompt = await storage.getPrompt(targetPromptId);
         if (prompt) {
+          console.log("Using meta prompt:", prompt.metaPrompt?.substring(0, 50) + "...");
+          
           // Use the generateFinalPrompt function to process the prompt through OpenAI
           try {
             const finalPrompt = await generateFinalPrompt(
@@ -617,7 +636,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log("Falling back to simple replacement for final prompt in update");
             updateData.finalPrompt = finalPrompt;
           }
+        } else {
+          console.error(`Prompt with ID ${targetPromptId} not found`);
         }
+      } else {
+        console.log("No prompt ID or user prompt changes, skipping final prompt generation");
       }
       
       // Update the evaluation

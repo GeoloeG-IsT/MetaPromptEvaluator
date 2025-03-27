@@ -82,6 +82,10 @@ export async function generateFinalPrompt(
   userPrompt: string,
 ): Promise<string> {
   try {
+    console.log("== generateFinalPrompt Function Input ==");
+    console.log("Meta Prompt (first 50 chars):", metaPrompt.substring(0, 50) + "...");
+    console.log("User Prompt:", userPrompt);
+    
     // Step 1: Replace the placeholder with the user prompt
     const combinedPrompt = userPrompt ? 
       metaPrompt.replace(/{{user_prompt}}/g, userPrompt) : 
@@ -90,7 +94,9 @@ export async function generateFinalPrompt(
     console.log("Combined prompt (with placeholder replaced):", combinedPrompt.substring(0, 100) + "...");
     
     // Step 2: Generate the final prompt by sending it to the LLM
+    console.log("Calling generateLLMResponse with combined prompt...");
     const response = await generateLLMResponse(combinedPrompt);
+    console.log("LLM response received (first 100 chars):", response.substring(0, 100) + "...");
     
     return response;
   } catch (error) {
