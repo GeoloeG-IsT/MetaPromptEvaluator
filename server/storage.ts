@@ -83,7 +83,6 @@ export class MemStorage implements IStorage {
     // Add sample dataset for testing
     this.createDataset({
       name: "Landscape Images",
-      category: "landscapes",
       description: "A collection of landscape images for evaluation",
       userId: 1
     }).then(dataset => {
@@ -154,12 +153,6 @@ export class MemStorage implements IStorage {
   async createDataset(insertDataset: InsertDataset): Promise<Dataset> {
     const id = this.currentDatasetId++;
     const createdAt = new Date();
-    
-    // Ensure category field is present
-    if (!insertDataset.category) {
-      insertDataset.category = "default"; // Provide a default category if not specified
-    }
-    
     const dataset: Dataset = { ...insertDataset, id, itemCount: 0, createdAt };
     this.datasets.set(id, dataset);
     return dataset;

@@ -2,7 +2,6 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateFinalPrompt, evaluatePrompt, generateLLMResponse } from "./openai";
-import { importFromAirtable } from "./airtable";
 import { z } from "zod";
 import { 
   insertPromptSchema, 
@@ -517,9 +516,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch evaluation results" });
     }
   });
-
-  // Airtable import
-  app.post("/api/import/airtable", importFromAirtable);
 
   const httpServer = createServer(app);
   return httpServer;

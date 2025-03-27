@@ -12,7 +12,6 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
-import AirtableImportDialog from "@/components/AirtableImportDialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { 
@@ -41,7 +40,6 @@ export default function Datasets() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
   const [isEditItemDialogOpen, setIsEditItemDialogOpen] = useState(false);
-  const [isAirtableImportDialogOpen, setIsAirtableImportDialogOpen] = useState(false);
   const [selectedDataset, setSelectedDataset] = useState<Dataset | null>(null);
   const [selectedDatasetItem, setSelectedDatasetItem] = useState<DatasetItem | null>(null);
   const [newDataset, setNewDataset] = useState({
@@ -435,16 +433,10 @@ export default function Datasets() {
           <h2 className="text-2xl font-semibold text-dark">Datasets</h2>
           <p className="text-gray-500">Manage your evaluation datasets</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsAirtableImportDialogOpen(true)}>
-            <span className="material-icons text-sm mr-1">cloud_download</span>
-            Import from Airtable
-          </Button>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <span className="material-icons text-sm mr-1">add</span>
-            New Dataset
-          </Button>
-        </div>
+        <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <span className="material-icons text-sm mr-1">add</span>
+          New Dataset
+        </Button>
       </div>
       
       {selectedDataset ? (
@@ -1034,12 +1026,6 @@ export default function Datasets() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Airtable Import Dialog */}
-      <AirtableImportDialog 
-        isOpen={isAirtableImportDialogOpen}
-        onClose={() => setIsAirtableImportDialogOpen(false)}
-      />
     </div>
   );
 }
