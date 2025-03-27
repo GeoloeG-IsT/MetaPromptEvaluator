@@ -40,6 +40,7 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
   const [isEditing, setIsEditing] = useState(false);
   const [userPrompt, setUserPrompt] = useState('');
   const [selectedResult, setSelectedResult] = useState<EvaluationResult | null>(null);
+  
   // Fetch evaluation details
   const { 
     data: evaluation, 
@@ -238,6 +239,13 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
       });
   };
 
+  // Set initial user prompt state when evaluation is loaded
+  useEffect(() => {
+    if (evaluation?.userPrompt) {
+      setUserPrompt(evaluation.userPrompt);
+    }
+  }, [evaluation]);
+
   // If loading, show spinner
   if (evaluationLoading) {
     return (
@@ -278,13 +286,10 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
             <>
               <Button 
                 variant="outline" 
-                onClick={() => {
-                  setUserPrompt(evaluation.userPrompt || '');
-                  setIsEditing(true);
-                }}
+                onClick={() => onEdit?.(evaluation)}
               >
                 <span className="material-icons text-sm mr-1">edit</span>
-                Edit User Prompt
+                Edit
               </Button>
               <Button 
                 onClick={() => runEvaluationMutation.mutate()}
@@ -317,104 +322,103 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
           <CardTitle>Evaluation Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Prompt:</span>
-                <span className="font-medium">{prompt?.name || `ID: ${evaluation.promptId}`}</span>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Prompt:</span>
+                  <span className="font-medium">{prompt?.name || `ID: ${evaluation.promptId}`}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Dataset:</span>
+                  <span className="font-medium">{dataset?.name || `ID: ${evaluation.datasetId}`}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Created:</span>
+                  <span className="font-medium">
+                    {evaluation.createdAt 
+                      ? formatDistanceToNow(new Date(evaluation.createdAt), { addSuffix: true })
+                      : "Unknown"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Completed:</span>
+                  <span className="font-medium">
+                    {evaluation.completedAt 
+                      ? formatDistanceToNow(new Date(evaluation.completedAt), { addSuffix: true })
+                      : "Not completed"}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Dataset:</span>
-                <span className="font-medium">{dataset?.name || `ID: ${evaluation.datasetId}`}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Created:</span>
-                <span className="font-medium">
-                  {evaluation.createdAt 
-                    ? formatDistanceToNow(new Date(evaluation.createdAt), { addSuffix: true })
-                    : "Unknown"}
-                </span>
-              </div>
-              <div className="flex flex-col pt-2">
-                <span className="text-gray-500 mb-1">User Prompt:</span>
-                <span className="font-medium text-sm bg-gray-50 p-2 rounded break-words">
-                  {evaluation.userPrompt || "None"}
-                </span>
+            
+              <div className="space-y-2">
+                {isEditing ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="userPrompt">User Prompt</Label>
+                      <Textarea
+                        id="userPrompt"
+                        value={userPrompt}
+                        onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setUserPrompt(e.target.value)}
+                        placeholder="Enter the user prompt that will replace the placeholder"
+                        className="min-h-[80px]"
+                      />
+                      <p className="text-xs text-gray-500">
+                        This will be used to replace placeholders in the meta prompt
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col">
+                    <span className="text-gray-500 mb-1">User Prompt:</span>
+                    <span className="font-medium text-sm bg-gray-50 p-2 rounded break-words">
+                      {evaluation.userPrompt || "None"}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             
-            <div className="space-y-2">
-              {isEditing ? (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="userPrompt">User Prompt</Label>
-                    <Textarea
-                      id="userPrompt"
-                      value={userPrompt}
-                      onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setUserPrompt(e.target.value)}
-                      placeholder="Enter the user prompt that will replace the placeholder"
-                      className="min-h-[80px]"
-                    />
-                    <p className="text-xs text-gray-500">
-                      This will be used to replace placeholders in the meta prompt
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Completed:</span>
-                    <span className="font-medium">
-                      {evaluation.completedAt 
-                        ? formatDistanceToNow(new Date(evaluation.completedAt), { addSuffix: true })
-                        : "Not completed"}
-                    </span>
-                  </div>
-                  <div className="flex flex-col pt-2">
-                    <span className="text-gray-500 mb-1">Final Prompt:</span>
-                    {finalPromptLoading ? (
-                      <div className="flex items-center justify-center p-4">
-                        <span className="material-icons animate-spin text-sm">refresh</span>
-                      </div>
-                    ) : (
-                      <span className="font-medium text-sm bg-gray-50 p-2 rounded break-words">
-                        {finalPromptData?.finalPrompt || "No final prompt available"}
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          
-          {evaluation.status === 'completed' && evaluation.score !== null && (
-            <div className="mt-6 border-t pt-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{evaluation.score}%</div>
-                <div className="mt-2">
-                  <Progress value={evaluation.score} className="h-2 w-full max-w-md mx-auto" />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 max-w-md mx-auto">
-                  {(() => {
-                    const metricsEntries = getMetricsEntries(evaluation.metrics);
-                    
-                    if (metricsEntries.length === 0) {
-                      return (
-                        <div className="col-span-4 text-center text-gray-500">No metrics available</div>
-                      );
-                    }
-                    
-                    return metricsEntries.map(([key, value]) => (
-                      <div key={key} className="text-center">
-                        <div className="text-sm text-gray-500 capitalize">{key}</div>
-                        <div className="font-semibold">{Math.round(value * 100)}%</div>
-                      </div>
-                    ));
-                  })()}
+            {!isEditing && (
+              <div className="pt-2">
+                <div className="text-gray-500 mb-1">Final Prompt:</div>
+                <div className="bg-gray-50 p-3 rounded-md overflow-auto max-h-56">
+                  <span className="font-medium text-sm break-words whitespace-pre-wrap">
+                    {evaluation.finalPrompt || "No final prompt available"}
+                  </span>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          
+            {evaluation.status === 'completed' && evaluation.score !== null && (
+              <div className="mt-6 border-t pt-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{evaluation.score}%</div>
+                  <div className="mt-2">
+                    <Progress value={evaluation.score} className="h-2 w-full max-w-md mx-auto" />
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 max-w-md mx-auto">
+                    {(() => {
+                      const metricsEntries = getMetricsEntries(evaluation.metrics);
+                      
+                      if (metricsEntries.length === 0) {
+                        return (
+                          <div className="col-span-4 text-center text-gray-500">No metrics available</div>
+                        );
+                      }
+                      
+                      return metricsEntries.map(([key, value]) => (
+                        <div key={key} className="text-center">
+                          <div className="text-sm text-gray-500 capitalize">{key}</div>
+                          <div className="font-semibold">{Math.round(value * 100)}%</div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
