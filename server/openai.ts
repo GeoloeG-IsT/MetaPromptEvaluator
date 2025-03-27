@@ -6,6 +6,34 @@ import { bucketStorage } from './bucket';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Generate a response using a processed meta prompt
+/**
+ * Cleans response content by removing markdown code blocks and language identifiers
+ * 
+ * @param content The content to clean
+ * @returns Cleaned content
+ */
+function cleanResponseContent(content: string): string {
+  // Remove ```json or ```javascript at the beginning
+  let cleaned = content.replace(/^```(json|javascript|js)\s*\n/i, '');
+  
+  // Remove ``` at the end
+  cleaned = cleaned.replace(/\n```\s*$/i, '');
+  
+  // If the entire content is wrapped in code blocks (not just at beginning/end)
+  if (content.startsWith('```') && content.endsWith('```')) {
+    // Extract content between first ``` and last ```
+    const match = content.match(/```(?:json|javascript|js)?\s*\n([\s\S]*)\n```\s*$/i);
+    if (match && match[1]) {
+      cleaned = match[1];
+    }
+  }
+  
+  // Remove json/ prefix
+  cleaned = cleaned.replace(/^json\//, '');
+  
+  return cleaned;
+}
+
 export async function generateLLMResponse(
   processedPrompt: string
 ): Promise<string> {
@@ -28,9 +56,8 @@ export async function generateLLMResponse(
 
     let result = response.choices[0].message.content || "Failed to generate response";
     
-    // Remove any "json/" prefix that might be present in the response
-    result = result.replace(/^```\//, "");
-    result = result.replace(/^json\//, '');
+    // Clean the response content
+    result = cleanResponseContent(result);
     
     return result;
   } catch (error) {
@@ -62,8 +89,8 @@ export async function generateFinalPrompt(
 
     let result = response.choices[0].message.content || "Failed to generate meta prompt";
     
-    // Remove any "json/" prefix that might be present in the response
-    result = result.replace(/^json\//, '');
+    // Clean the response content
+    result = cleanResponseContent(result);
     
     return result;
   } catch (error) {
@@ -196,8 +223,8 @@ export async function generateImageResponse(finalPrompt: string, imageUrl: strin
 
     let result = response.choices[0].message.content || "Failed to generate response for image";
     
-    // Remove any "json/" prefix that might be present in the response
-    result = result.replace(/^json\//, '');
+    // Clean the response content
+    result = cleanResponseContent(result);
     
     console.log("Generated response (preview):", result.substring(0, 100) + "...");
     return result;
@@ -236,8 +263,8 @@ export async function generateTextResponse(finalPrompt: string, inputText: strin
 
     let result = response.choices[0].message.content || "Failed to generate response for text";
     
-    // Remove any "json/" prefix that might be present in the response
-    result = result.replace(/^json\//, '');
+    // Clean the response content
+    result = cleanResponseContent(result);
     
     console.log("Generated response (preview):", result.substring(0, 100) + "...");
     return result;
@@ -334,8 +361,8 @@ export async function evaluateResponse(
     const content = response.choices[0].message.content || "{}";
     console.log("Raw evaluation result:", content);
     
-    // Remove any "json/" prefix that might be present in the response
-    const cleanedContent = content.replace(/^json\//, '');
+    // Clean the response content
+    const cleanedContent = cleanResponseContent(content);
     console.log("Cleaned content:", cleanedContent);
     
     let result;
