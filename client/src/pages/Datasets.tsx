@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { generatePdfId, uploadPdf, getPdf, getPdfMarkdown, deletePdf } from "@/lib/pdfUtils";
 import { formatDistanceToNow } from "date-fns";
-import { MarkdownViewer } from "@/components/MarkdownViewer";
+
 
 type Dataset = {
   id: number;
@@ -22,8 +22,6 @@ type Dataset = {
   userId?: number;
   itemCount: number;
   createdAt?: string;
-  // Extended properties for UI state
-  activeMarkdownItems?: number[];
 };
 
 type DatasetItem = {
@@ -365,11 +363,8 @@ export default function Datasets() {
   };
   
   const viewDataset = (dataset: Dataset) => {
-    // Initialize the dataset with an empty array of active markdown items
-    setSelectedDataset({
-      ...dataset,
-      activeMarkdownItems: []
-    });
+    // Simply set the selected dataset
+    setSelectedDataset(dataset);
   };
   
   const closeDatasetView = () => {
@@ -717,42 +712,123 @@ export default function Datasets() {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.stopPropagation();
-                                  // Use state instead of window object for better React patterns
-                                  const activeItems = [...(selectedDataset.activeMarkdownItems || [])];
-                                  const index = activeItems.indexOf(item.id);
                                   
-                                  if (index >= 0) {
-                                    // Remove from active items
-                                    activeItems.splice(index, 1);
-                                  } else {
-                                    // Add to active items
-                                    activeItems.push(item.id);
-                                  }
-                                  
-                                  // Update the dataset with the new active items
-                                  setSelectedDataset({
-                                    ...selectedDataset,
-                                    activeMarkdownItems: activeItems
+                                  // Show loading toast
+                                  toast({
+                                    title: "Loading markdown",
+                                    description: "Retrieving PDF content..."
                                   });
+                                  
+                                  try {
+                                    // Directly get markdown content and open in popup
+                                    const markdownContent = await getPdfMarkdown(item.inputPdf || '');
+                                    
+                                    if (!markdownContent) {
+                                      toast({
+                                        title: "Error",
+                                        description: "No markdown content available for this PDF",
+                                        variant: "destructive"
+                                      });
+                                      return;
+                                    }
+                                    
+                                    // Create a new window for the popup
+                                    const popupWindow = window.open('', '_blank', 'width=800,height=600');
+                                    
+                                    if (!popupWindow) {
+                                      toast({
+                                        title: 'Popup Blocked',
+                                        description: 'Please allow popups to view the markdown content',
+                                        variant: 'destructive',
+                                      });
+                                      return;
+                                    }
+                                    
+                                    // Write HTML content to the popup window
+                                    popupWindow.document.write(`
+                                      <!DOCTYPE html>
+                                      <html>
+                                      <head>
+                                        <title>Markdown Content: ${item.inputPdf}</title>
+                                        <style>
+                                          body {
+                                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                                            padding: 20px;
+                                            margin: 0;
+                                            background-color: white;
+                                            color: black;
+                                            line-height: 1.5;
+                                          }
+                                          .container {
+                                            max-width: 800px;
+                                            margin: 0 auto;
+                                          }
+                                          header {
+                                            display: flex;
+                                            justify-content: space-between;
+                                            align-items: center;
+                                            margin-bottom: 20px;
+                                            padding-bottom: 10px;
+                                            border-bottom: 1px solid #eaeaea;
+                                          }
+                                          h1 {
+                                            font-size: 20px;
+                                            margin: 0;
+                                          }
+                                          .content {
+                                            background-color: white;
+                                            padding: 15px;
+                                            border-radius: 6px;
+                                            white-space: pre-wrap;
+                                            overflow-wrap: break-word;
+                                            overflow-y: auto;
+                                          }
+                                          .btn {
+                                            padding: 8px 16px;
+                                            background-color: #f1f5f9;
+                                            border: 1px solid #e2e8f0;
+                                            border-radius: 4px;
+                                            cursor: pointer;
+                                            font-size: 14px;
+                                          }
+                                          .btn:hover {
+                                            background-color: #e2e8f0;
+                                          }
+                                        </style>
+                                      </head>
+                                      <body>
+                                        <div class="container">
+                                          <header>
+                                            <h1>Markdown Content: ${item.inputPdf} <span style="font-size: 12px; color: #888;">(Extracted from PDF)</span></h1>
+                                            <button class="btn" onclick="window.print()">
+                                              Print
+                                            </button>
+                                          </header>
+                                          <div class="content">${markdownContent}</div>
+                                        </div>
+                                      </body>
+                                      </html>
+                                    `);
+                                    
+                                    // Close the document to finish loading
+                                    popupWindow.document.close();
+                                  } catch (error) {
+                                    console.error("Error fetching markdown:", error);
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to load markdown content",
+                                      variant: "destructive"
+                                    });
+                                  }
                                 }}
                               >
-                                <span className="material-icons text-xs mr-1">subject</span>
-                                {selectedDataset.activeMarkdownItems?.includes(item.id) 
-                                  ? 'Hide Markdown' 
-                                  : 'View Markdown'
-                                }
+                                <span className="material-icons text-xs mr-1">open_in_new</span>
+                                View Markdown
                               </Button>
                             </div>
-                            
-                            {/* Conditionally show the markdown viewer */}
-                            {selectedDataset.activeMarkdownItems?.includes(item.id) && (
-                              <MarkdownViewer 
-                                fileId={item.inputPdf} 
-                                title={`Markdown: ${item.inputPdf}`}
-                              />
-                            )}
+
                           </div>
                         ) : (
                           <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center">
