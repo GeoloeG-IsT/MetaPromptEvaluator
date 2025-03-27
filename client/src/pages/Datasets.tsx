@@ -22,6 +22,8 @@ type Dataset = {
   userId?: number;
   itemCount: number;
   createdAt?: string;
+  // Extended properties for UI state
+  activeMarkdownItems?: number[];
 };
 
 type DatasetItem = {
@@ -363,7 +365,11 @@ export default function Datasets() {
   };
   
   const viewDataset = (dataset: Dataset) => {
-    setSelectedDataset(dataset);
+    // Initialize the dataset with an empty array of active markdown items
+    setSelectedDataset({
+      ...dataset,
+      activeMarkdownItems: []
+    });
   };
   
   const closeDatasetView = () => {
@@ -713,24 +719,35 @@ export default function Datasets() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  // Toggle showing the markdown viewer for this item
-                                  const currentValue = item.id === (window as any).activeMarkdownItem;
-                                  if (currentValue) {
-                                    (window as any).activeMarkdownItem = null;
+                                  // Use state instead of window object for better React patterns
+                                  const activeItems = [...(selectedDataset.activeMarkdownItems || [])];
+                                  const index = activeItems.indexOf(item.id);
+                                  
+                                  if (index >= 0) {
+                                    // Remove from active items
+                                    activeItems.splice(index, 1);
                                   } else {
-                                    (window as any).activeMarkdownItem = item.id;
+                                    // Add to active items
+                                    activeItems.push(item.id);
                                   }
-                                  // Force re-render to show/hide markdown
-                                  setSelectedDataset({...selectedDataset});
+                                  
+                                  // Update the dataset with the new active items
+                                  setSelectedDataset({
+                                    ...selectedDataset,
+                                    activeMarkdownItems: activeItems
+                                  });
                                 }}
                               >
                                 <span className="material-icons text-xs mr-1">subject</span>
-                                {item.id === (window as any).activeMarkdownItem ? 'Hide Markdown' : 'View Markdown'}
+                                {selectedDataset.activeMarkdownItems?.includes(item.id) 
+                                  ? 'Hide Markdown' 
+                                  : 'View Markdown'
+                                }
                               </Button>
                             </div>
                             
                             {/* Conditionally show the markdown viewer */}
-                            {item.id === (window as any).activeMarkdownItem && (
+                            {selectedDataset.activeMarkdownItems?.includes(item.id) && (
                               <MarkdownViewer 
                                 fileId={item.inputPdf} 
                                 title={`Markdown: ${item.inputPdf}`}
