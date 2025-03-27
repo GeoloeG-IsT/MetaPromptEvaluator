@@ -359,6 +359,9 @@ async function waitForJobCompletion(
 /**
  * Get the markdown result of a completed job
  *
+ * According to the LlamaIndex API docs (https://docs.cloud.llamaindex.ai/API/get-job-result-api-v-1-parsing-job-job-id-result-markdown-get),
+ * the response is a JSON object with a 'markdown' field containing the extracted text.
+ *
  * @param apiKey The LlamaIndex API key
  * @param jobId The completed job ID
  * @returns A Promise that resolves to the markdown content
@@ -369,6 +372,8 @@ async function getJobResultMarkdown(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
+      console.log(`Getting markdown result for job: ${jobId}`);
+      
       // Set up the request options
       const options = {
         hostname: LLAMAINDEX_API_HOST,
@@ -377,7 +382,7 @@ async function getJobResultMarkdown(
         method: "GET",
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          Accept: "text/markdown",
+          Accept: "application/json",  // Request JSON response instead of markdown directly
         },
       };
 
@@ -402,8 +407,27 @@ async function getJobResultMarkdown(
             );
           }
 
-          // The response is the markdown content directly
-          resolve(data);
+          try {
+            // Parse the JSON response
+            const response = JSON.parse(data);
+            
+            // Extract the markdown field from the response
+            if (!response.markdown) {
+              console.error("No markdown field in API response:", data);
+              return reject(new Error("No markdown field in API response"));
+            }
+            
+            console.log(`Successfully retrieved markdown (${response.markdown.length} characters)`);
+            resolve(response.markdown);
+          } catch (parseError: any) {
+            console.error("Failed to parse API response:", parseError);
+            console.error("Raw response:", data);
+            reject(
+              new Error(
+                `Failed to parse API response: ${parseError?.message || "Unknown error"}`,
+              ),
+            );
+          }
         });
       });
 

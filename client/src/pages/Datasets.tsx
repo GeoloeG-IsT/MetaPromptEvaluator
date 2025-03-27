@@ -625,7 +625,7 @@ export default function Datasets() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {datasetItems.map((item) => (
+                  {datasetItems.map((item: DatasetItem) => (
                     <TableRow key={item.id}>
                       <TableCell>
                         <Badge 
@@ -806,7 +806,7 @@ export default function Datasets() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {datasets.map((dataset) => (
+              {datasets.map((dataset: Dataset) => (
                 <Card key={dataset.id} className="overflow-hidden hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
