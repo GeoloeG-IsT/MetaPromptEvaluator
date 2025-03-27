@@ -40,27 +40,35 @@ export async function generateLLMResponse(
   processedPrompt: string,
 ): Promise<string> {
   try {
+    console.log("GENERATING LLM RESPONSE");
+    console.log("Processed prompt (first 100 chars):", processedPrompt.substring(0, 100) + "...");
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are a helpful assistant.",
+          content: "You are an expert prompt engineer who creates clear, detailed, instructional prompts for AI models.",
         },
         {
           role: "user",
           content: processedPrompt,
         },
+        {
+          role: "user",
+          content: "Based on the instructions above, generate a system prompt that can be used directly with an LLM.",
+        }
       ],
-      temperature: 0.7,
-      max_tokens: 1000,
+      temperature: 0.2,
+      max_tokens: 2000,
     });
 
-    let result =
-      response.choices[0].message.content || "Failed to generate response";
+    let result = response.choices[0].message.content || "Failed to generate response";
 
     // Clean the response content
     result = cleanResponseContent(result);
+    
+    console.log("Generated LLM response (first 100 chars):", result.substring(0, 100) + "...");
 
     return result;
   } catch (error) {
@@ -74,39 +82,20 @@ export async function generateFinalPrompt(
   userPrompt: string,
 ): Promise<string> {
   try {
-    // First create the combined prompt by replacing the placeholder with user input
+    // Step 1: Replace the placeholder with the user prompt
     const combinedPrompt = userPrompt ? 
       metaPrompt.replace(/{{user_prompt}}/g, userPrompt) : 
       metaPrompt;
     
     console.log("Combined prompt (with placeholder replaced):", combinedPrompt.substring(0, 100) + "...");
     
-    // Then send it to OpenAI to generate the final processed prompt
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "system",
-          content: combinedPrompt
-        },
-        {
-          role: "user",
-          content: "Please generate a prompt based on the instructions above."
-        }
-      ],
-      temperature: 0.0,
-      max_tokens: 2048
-    });
-
-    let result = response.choices[0].message.content || "Failed to generate meta prompt";
+    // Step 2: Generate the final prompt by sending it to the LLM
+    const response = await generateLLMResponse(combinedPrompt);
     
-    // Clean the response content
-    result = cleanResponseContent(result);
-    
-    return result;
+    return response;
   } catch (error) {
-    console.error("Error calling OpenAI:", error);
-    throw new Error("Failed to generate meta prompt");
+    console.error("Error generating final prompt:", error);
+    throw new Error("Failed to generate final prompt");
   }
 }
 
