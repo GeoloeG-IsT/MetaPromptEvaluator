@@ -40,8 +40,8 @@ export async function generateLLMResponse(
   processedPrompt: string,
 ): Promise<string> {
   try {
-    console.log("GENERATING LLM RESPONSE");
-    console.log("Processed prompt (first 100 chars):", processedPrompt.substring(0, 100) + "...");
+    // console.log("GENERATING LLM RESPONSE");
+    // console.log("Processed prompt (first 100 chars):", processedPrompt.substring(0, 100) + "...");
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -68,7 +68,7 @@ export async function generateLLMResponse(
     // Clean the response content
     result = cleanResponseContent(result);
     
-    console.log("Generated LLM response (first 100 chars):", result.substring(0, 100) + "...");
+    // console.log("Generated LLM response (first 100 chars):", result.substring(0, 100) + "...");
 
     return result;
   } catch (error) {
@@ -82,21 +82,21 @@ export async function generateFinalPrompt(
   userPrompt: string,
 ): Promise<string> {
   try {
-    console.log("== generateFinalPrompt Function Input ==");
-    console.log("Meta Prompt (first 50 chars):", metaPrompt.substring(0, 50) + "...");
-    console.log("User Prompt:", userPrompt);
+    // console.log("== generateFinalPrompt Function Input ==");
+    // console.log("Meta Prompt (first 50 chars):", metaPrompt.substring(0, 50) + "...");
+    // console.log("User Prompt:", userPrompt);
     
     // Step 1: Replace the placeholder with the user prompt
     const combinedPrompt = userPrompt ? 
       metaPrompt.replace(/{{user_prompt}}/g, userPrompt) : 
       metaPrompt;
     
-    console.log("Combined prompt (with placeholder replaced):", combinedPrompt.substring(0, 100) + "...");
+    // console.log("Combined prompt (with placeholder replaced):", combinedPrompt.substring(0, 100) + "...");
     
     // Step 2: Generate the final prompt by sending it to the LLM
-    console.log("Calling generateLLMResponse with combined prompt...");
+    // console.log("Calling generateLLMResponse with combined prompt...");
     const response = await generateLLMResponse(combinedPrompt);
-    console.log("LLM response received (first 100 chars):", response.substring(0, 100) + "...");
+    // console.log("LLM response received (first 100 chars):", response.substring(0, 100) + "...");
     
     return response;
   } catch (error) {
@@ -120,52 +120,52 @@ export async function evaluatePrompt(
 ): Promise<EvaluationResultItem[]> {
   const results: EvaluationResultItem[] = [];
 
-  console.log("=== EVALUATION INFO ===");
-  console.log("Final Prompt:", finalPrompt);
-  console.log("User Prompt (reference only):", userPrompt);
-  console.log("Number of Dataset Items:", datasetItems.length);
-  console.log("=======================");
+  // console.log("=== EVALUATION INFO ===");
+  // console.log("Final Prompt:", finalPrompt);
+  // console.log("User Prompt (reference only):", userPrompt);
+  // console.log("Number of Dataset Items:", datasetItems.length);
+  // console.log("=======================");
 
   // Process each dataset item
   for (const item of datasetItems) {
-    console.log(`\n=== Processing Dataset Item ID: ${item.id} ===`);
-    console.log(`Input Type: ${item.inputType}`);
-    console.log(`Has Input Image: ${!!item.inputImage}`);
-    console.log(`Has Input Text: ${!!item.inputText}`);
-    console.log(`Has Input PDF: ${!!item.inputPdf}`);
-    console.log(`Expected Response: ${item.validResponse}`);
+    // console.log(`\n=== Processing Dataset Item ID: ${item.id} ===`);
+    // console.log(`Input Type: ${item.inputType}`);
+    // console.log(`Has Input Image: ${!!item.inputImage}`);
+    // console.log(`Has Input Text: ${!!item.inputText}`);
+    // console.log(`Has Input PDF: ${!!item.inputPdf}`);
+    // console.log(`Expected Response: ${item.validResponse}`);
 
     try {
       // Generate a response using the processed meta prompt and the input (image, text, or PDF)
       let generatedResponse: string;
       if (item.inputType === "image" && item.inputImage) {
-        console.log("Generating response for IMAGE input");
+        // console.log("Generating response for IMAGE input");
         generatedResponse = await generateImageResponse(
           finalPrompt,
           item.inputImage,
         );
       } else if (item.inputType === "text" && item.inputText) {
-        console.log("Generating response for TEXT input");
+        // console.log("Generating response for TEXT input");
         generatedResponse = await generateTextResponse(
           finalPrompt,
           item.inputText,
         );
       } else if (item.inputType === "pdf" && item.inputPdf) {
-        console.log("Generating response for PDF input");
+        // console.log("Generating response for PDF input");
         generatedResponse = await generatePdfResponse(
           finalPrompt,
           item.inputPdf,
         );
       } else {
-        console.log(
-          "WARNING: Dataset item has no valid input (image, text, or PDF)",
-        );
+        // console.log(
+        //   "WARNING: Dataset item has no valid input (image, text, or PDF)",
+        // );
         generatedResponse = "Error: Dataset item has no valid input";
       }
 
-      console.log(
-        `Generated Response (first 100 chars): ${generatedResponse.substring(0, 100)}...`,
-      );
+      // console.log(
+      //   `Generated Response (first 100 chars): ${generatedResponse.substring(0, 100)}...`,
+      // );
 
       // Evaluate the generated response against the valid response
       const evaluationResult = await evaluateResponse(
@@ -173,9 +173,9 @@ export async function evaluatePrompt(
         item.validResponse,
       );
 
-      console.log(
-        `Evaluation Result: Valid=${evaluationResult.isValid}, Score=${evaluationResult.score}`,
-      );
+      // console.log(
+      //   `Evaluation Result: Valid=${evaluationResult.isValid}, Score=${evaluationResult.score}`,
+      // );
 
       results.push({
         datasetItemId: item.id,
@@ -208,9 +208,9 @@ export async function generateImageResponse(
   imageUrl: string,
 ): Promise<string> {
   try {
-    console.log("IMAGE RESPONSE GENERATION");
-    console.log("Final Prompt:", finalPrompt);
-    console.log("Image URL:", imageUrl);
+    // console.log("IMAGE RESPONSE GENERATION");
+    // console.log("Final Prompt:", finalPrompt);
+    // console.log("Image URL:", imageUrl);
 
     // Prepare the messages for the API call
     const response = await openai.chat.completions.create({
@@ -248,14 +248,14 @@ export async function generateImageResponse(
     // Clean the response content
     result = cleanResponseContent(result);
 
-    console.log(
-      "Generated response (preview):",
-      result.substring(0, 100) + "...",
-    );
+    // console.log(
+    //   "Generated response (preview):",
+    //   result.substring(0, 100) + "...",
+    // );
     return result;
   } catch (error: any) {
-    console.error("Error generating image response:", error);
-    console.error("Error details:", JSON.stringify(error, null, 2));
+    // console.error("Error generating image response:", error);
+    // console.error("Error details:", JSON.stringify(error, null, 2));
     return (
       "Error: Unable to generate response for this image. " +
       (error.message || "Unknown error")
@@ -272,9 +272,9 @@ export async function generateTextResponse(
   inputText: string,
 ): Promise<string> {
   try {
-    console.log("TEXT RESPONSE GENERATION");
-    console.log("Final Prompt:", finalPrompt);
-    console.log("Input Text:", inputText);
+    // console.log("TEXT RESPONSE GENERATION");
+    // console.log("Final Prompt:", finalPrompt);
+    // console.log("Input Text:", inputText);
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -299,14 +299,14 @@ export async function generateTextResponse(
     // Clean the response content
     result = cleanResponseContent(result);
 
-    console.log(
-      "Generated response (preview):",
-      result.substring(0, 100) + "...",
-    );
+    // console.log(
+    //   "Generated response (preview):",
+    //   result.substring(0, 100) + "...",
+    // );
     return result;
   } catch (error: any) {
-    console.error("Error generating text response:", error);
-    console.error("Error details:", JSON.stringify(error, null, 2));
+    // console.error("Error generating text response:", error);
+    // console.error("Error details:", JSON.stringify(error, null, 2));
     return (
       "Error: Unable to generate response for this text input. " +
       (error.message || "Unknown error")
@@ -326,20 +326,20 @@ export async function generatePdfResponse(
   pdfFileId: string,
 ): Promise<string> {
   try {
-    console.log("PDF RESPONSE GENERATION");
-    console.log("Final Prompt:", finalPrompt);
-    console.log("PDF File ID:", pdfFileId);
+    // console.log("PDF RESPONSE GENERATION");
+    // console.log("Final Prompt:", finalPrompt);
+    // console.log("PDF File ID:", pdfFileId);
 
     try {
       // Extract text from PDF using our bucket storage's enhanced extraction
-      console.log("Extracting text from PDF using bucket storage");
+      // console.log("Extracting text from PDF using bucket storage");
       const extractedText = await bucketStorage.extractTextFromPdf(pdfFileId);
 
       if (extractedText) {
-        console.log(
-          `Successfully extracted text from PDF, length: ${extractedText.length} characters`,
-        );
-        console.log(`Text preview: ${extractedText.substring(0, 100)}...`);
+        // console.log(
+        //   `Successfully extracted text from PDF, length: ${extractedText.length} characters`,
+        // );
+        // console.log(`Text preview: ${extractedText.substring(0, 100)}...`);
 
         // Process the extracted text through the LLM using our text response function
         return await generateTextResponse(finalPrompt, extractedText);
@@ -347,12 +347,12 @@ export async function generatePdfResponse(
         throw new Error("Extracted text is empty");
       }
     } catch (error: any) {
-      console.error(`Error processing PDF ${pdfFileId}:`, error);
+      // console.error(`Error processing PDF ${pdfFileId}:`, error);
       return `Error: Unable to process PDF file with ID ${pdfFileId}. ${error.message || "Unknown error"}`;
     }
   } catch (error: any) {
-    console.error("Error generating PDF response:", error);
-    console.error("Error details:", error.message || "Unknown error");
+    // console.error("Error generating PDF response:", error);
+    // console.error("Error details:", error.message || "Unknown error");
     return (
       "Error: Unable to generate response for this PDF document. " +
       (error.message || "Unknown error")
@@ -374,12 +374,12 @@ export async function evaluateResponse(
   validResponse: string,
 ): Promise<EvaluationResponse> {
   try {
-    console.log("EVALUATING RESPONSE");
-    console.log(
-      "Generated Response:",
-      generatedResponse.substring(0, 100) + "...",
-    );
-    console.log("Valid Response:", validResponse.substring(0, 100) + "...");
+    // console.log("EVALUATING RESPONSE");
+    // console.log(
+    //   "Generated Response:",
+    //   generatedResponse.substring(0, 100) + "...",
+    // );
+    // console.log("Valid Response:", validResponse.substring(0, 100) + "...");
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -407,17 +407,17 @@ export async function evaluateResponse(
     });
 
     const content = response.choices[0].message.content || "{}";
-    console.log("Raw evaluation result:", content);
+    // console.log("Raw evaluation result:", content);
 
     // Clean the response content
     const cleanedContent = cleanResponseContent(content);
-    console.log("Cleaned content:", cleanedContent);
+    // console.log("Cleaned content:", cleanedContent);
 
     let result;
     try {
       result = JSON.parse(cleanedContent);
     } catch (parseError) {
-      console.error("Error parsing evaluation result JSON:", parseError);
+      // console.error("Error parsing evaluation result JSON:", parseError);
       return {
         isValid: false,
         score: 0,
@@ -431,11 +431,11 @@ export async function evaluateResponse(
       feedback: result.feedback || "No feedback provided",
     };
 
-    console.log("Evaluation result:", evalResult);
+    // console.log("Evaluation result:", evalResult);
     return evalResult;
   } catch (error: any) {
-    console.error("Error evaluating response:", error);
-    console.error("Error details:", JSON.stringify(error, null, 2));
+    // console.error("Error evaluating response:", error);
+    // console.error("Error details:", JSON.stringify(error, null, 2));
     return {
       isValid: false,
       score: 0,

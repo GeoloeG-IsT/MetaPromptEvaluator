@@ -77,7 +77,7 @@ export default function Evaluations() {
       
       // Use the latest userPrompt if available, otherwise fall back to the provided one
       const userPrompt = latestEvaluation?.userPrompt || data.userPrompt;
-      console.log(`Starting evaluation ${data.id} with userPrompt:`, userPrompt);
+      // console.log(`Starting evaluation ${data.id} with userPrompt:`, userPrompt);
       
       return await apiRequest('POST', `/api/evaluations/${data.id}/start`, { userPrompt });
     },

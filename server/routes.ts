@@ -61,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/prompts", async (req: Request, res: Response) => {
     try {
       const userId = req.query.userId ? Number(req.query.userId) : undefined;
-      console.log("Fetching prompts with userId:", userId);
+      // console.log("Fetching prompts with userId:", userId);
       try {
         const prompts = await storage.getPrompts(userId);
         res.json(prompts);
@@ -208,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // First, get all dataset items and delete them
       const datasetItems = await storage.getDatasetItems(id);
-      console.log(`Deleting ${datasetItems.length} items from dataset ${id}`);
+      // console.log(`Deleting ${datasetItems.length} items from dataset ${id}`);
 
       // Delete all dataset items (including associated PDFs and markdown files)
       for (const item of datasetItems) {
@@ -899,23 +899,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               return;
             }
 
-            console.log(
-              `Starting evaluation for prompt ID ${prompt.id} with ${datasetItems.length} dataset items`,
-            );
-            console.log(
-              `Using meta prompt: ${prompt.metaPrompt?.substring(0, 100)}...`,
-            );
-            console.log(
-              `User prompt: ${updatedEvaluation.userPrompt || "(None provided)"}`,
-            );
+            // console.log(
+            //   `Starting evaluation for prompt ID ${prompt.id} with ${datasetItems.length} dataset items`,
+            // );
+            // console.log(
+            //   `Using meta prompt: ${prompt.metaPrompt?.substring(0, 100)}...`,
+            // );
+            // console.log(
+            //   `User prompt: ${updatedEvaluation.userPrompt || "(None provided)"}`,
+            // );
 
             // Get existing results and delete them if re-running an evaluation
             const existingResults =
               await storage.getEvaluationResults(evaluationId);
             if (existingResults && existingResults.length > 0) {
-              console.log(
-                `Deleting ${existingResults.length} existing results for evaluation ID ${evaluationId}`,
-              );
+              // console.log(
+              //   `Deleting ${existingResults.length} existing results for evaluation ID ${evaluationId}`,
+              // );
 
               // Delete each existing result
               for (const result of existingResults) {
@@ -928,10 +928,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             if (updatedEvaluation.finalPrompt) {
               finalPrompt = updatedEvaluation.finalPrompt;
-              console.log(
-                "Using existing final prompt:",
-                finalPrompt
-              );
+              // console.log(
+              //   "Using existing final prompt:",
+              //   finalPrompt
+              // );
             } else {
               // Generate a final prompt using the OpenAI API
               try {
@@ -939,10 +939,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   prompt.metaPrompt,
                   updatedEvaluation.userPrompt || "",
                 );
-                console.log(
-                  "Generated final prompt for evaluation:",
-                  finalPrompt
-                );
+                // console.log(
+                //   "Generated final prompt for evaluation:",
+                //   finalPrompt
+                // );
 
                 // Update the evaluation with the final prompt
                 await storage.updateEvaluation(evaluationId, { finalPrompt });
@@ -958,9 +958,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                       updatedEvaluation.userPrompt,
                     )
                   : prompt.metaPrompt;
-                console.log(
-                  "Falling back to simple replacement for final prompt in evaluation",
-                );
+                // console.log(
+                //   "Falling back to simple replacement for final prompt in evaluation",
+                // );
                 await storage.updateEvaluation(evaluationId, { finalPrompt });
               }
             }
