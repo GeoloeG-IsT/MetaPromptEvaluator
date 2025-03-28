@@ -1,0 +1,67 @@
+Final updateData being saved to database: {
+  status: 'pending',
+  metrics: null,
+  promptId: 2,
+  datasetId: 8,
+  userPrompt: 'Prompt that extracts total net, business name and a list of items including name and price data as a JSON',
+  finalPrompt: 'Extract the following information from the provided text and format it as a JSON object:\n' +
+    '\n' +
+    '1. **Business Name:** Extract the name of the business. If not found, use `null`.\n' +
+    '2. **Total Net:** Extract the total net amount. If not found, use `null`.\n' +
+    '3. **Items List:** Extract a list of items, where each item includes:\n' +
+    '   - `name`: The name of the item (string). If not found, use `null`.\n' +
+    '   - `price`: The price of the item (number). If not found, use `null`.\n' +
+    '\n' +
+    'Output the extracted data in the following JSON format:\n' +
+    '\n' +
+    '```json\n' +
+    '{\n' +
+    '  "business_name": "string or null",\n' +
+    '  "total_net": "number or null",\n' +
+    '  "items": [\n' +
+    '    {\n' +
+    '      "name": "string or null",\n' +
+    '      "price": "number or null"\n' +
+    '    },\n' +
+    '    ...\n' +
+    '  ]\n' +
+    '}\n' +
+    '```\n' +
+    '\n' +
+    'Ensure the output strictly adheres to this format. If any data is missing, use `null` for the respective fields. Be robust to variations in wording or layout within the source text, but maintain accuracy. Output only the JSON object without any additional text or explanation.'
+}
+Updated evaluation returned from database: {
+  id: 31,
+  promptId: 2,
+  userPrompt: 'Prompt that extracts total net, business name and a list of items including name and price data as a JSON',
+  finalPrompt: 'You are tasked with extracting specific data from a provided text document. Your goal is to accurately extract the following information and format it as a JSON object:\n' +
+    '\n' +
+    '1. `total_gross`: The total gross amount. This should be a number.\n' +
+    '2. `total_net`: The total net amount. This should be a number.\n' +
+    '3. `business_name`: The name of the business. This should be a string.\n' +
+    '4. `items`: A list of items, where each item includes:\n' +
+    '   - `product_name`: The name of the product. This should be a string.\n' +
+    '   - `price`: The price of the product. This should be a number.\n' +
+    '\n' +
+    'The JSON structure should look like this:\n' +
+    '\n' +
+    '```json\n' +
+    '{\n' +
+    '  "total_gross": null,\n' +
+    '  "total_net": null,\n' +
+    '  "business_name": null,\n' +
+    '  "items": [\n' +
+    '    {\n' +
+    '      "product_name": null,\n' +
+    '      "price": null\n' +
+    '    }\n' +
+    '  ]\n' +
+    '}\n' +
+    '```\n' +
+    '\n' +
+    'Instructions:\n' +
+    '- If any of the requested data is not found in the source text, use `null` for the corresponding JSON value.\n' +
+    '- Be robust to variations in wording or layout within the source text, but ensure accuracy in the extracted data.\n' +
+    '- The output must strictly adhere to the specified JSON format.\n' +
+    '- Provide only the extracted data in the specified format, without any additional text or explanations.'
+}

@@ -230,6 +230,10 @@ export class DatabaseStorage implements IStorage {
     if (evaluation.promptId !== undefined) updateValues.promptId = evaluation.promptId;
     if (evaluation.datasetId !== undefined) updateValues.datasetId = evaluation.datasetId;
     if (evaluation.userPrompt !== undefined) updateValues.userPrompt = evaluation.userPrompt;
+    if (evaluation.finalPrompt !== undefined) updateValues.finalPrompt = evaluation.finalPrompt;
+    
+    // Log the actual updateValues being used
+    console.log(`Database updateEvaluation for ID ${id} with fields:`, Object.keys(updateValues));
     
     const [result] = await db.update(evaluations)
       .set(updateValues)
