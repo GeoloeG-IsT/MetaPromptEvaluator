@@ -52,6 +52,8 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
       if (!res.ok) throw new Error('Failed to fetch evaluation');
       return res.json();
     },
+    // Poll every 3 seconds to check for updates on in-progress evaluations
+    refetchInterval: 3000,
   });
   
   // Fetch evaluation results
@@ -66,6 +68,8 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
       return res.json();
     },
     enabled: !!evaluationId,
+    // Poll every 3 seconds to check for updates on in-progress evaluations
+    refetchInterval: 3000,
   });
   
   // Fetch associated prompt
@@ -133,7 +137,6 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
   const updateEvaluationMutation = useMutation({
     mutationFn: async (data: Partial<Evaluation>) => {
       console.log("Updating evaluation:", { id: evaluationId, ...data });
-      console.log("Updating evaluation via mutation:", { id: evaluationId, ...data });
       return await apiRequest('PUT', `/api/evaluations/${evaluationId}`, data);
     },
     onSuccess: (updatedEvaluation: Evaluation) => {
@@ -142,15 +145,26 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
         description: 'The evaluation has been updated successfully.',
       });
       
-      // Important: Set the evaluation data directly to ensure the UI updates
+      // Important: Set the evaluation data directly to ensure the UI updates immediately
       // This ensures we don't have to wait for the query invalidation to complete
       queryClient.setQueryData(['/api/evaluations', evaluationId], updatedEvaluation);
       
       console.log("Evaluation updated successfully:", updatedEvaluation);
       
-      // Also invalidate the queries to ensure data consistency
+      // Invalidate all related queries to ensure data consistency
+      // Main evaluations list
       queryClient.invalidateQueries({ queryKey: ['/api/evaluations'] });
+      
+      // This specific evaluation
       queryClient.invalidateQueries({ queryKey: ['/api/evaluations', evaluationId] });
+      
+      // Results for this evaluation (in case they get affected by the update)
+      queryClient.invalidateQueries({ queryKey: ['/api/evaluations', evaluationId, 'results'] });
+      
+      // Final prompt calculation query (in case user prompt changed)
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/generate-final-prompt', evaluation?.finalPrompt, prompt?.metaPrompt, evaluation?.userPrompt] 
+      });
       
       setIsEditing(false);
     },
@@ -167,10 +181,13 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
   const handleSave = () => {
     if (!evaluation) return;
     
+    // Include the existing finalPrompt in the update to ensure it's not lost
     updateEvaluationMutation.mutate({
       userPrompt,
       promptId: evaluation.promptId,
-      datasetId: evaluation.datasetId
+      datasetId: evaluation.datasetId,
+      // Preserve the existing finalPrompt if available
+      finalPrompt: evaluation.finalPrompt
     });
   };
   
@@ -219,8 +236,16 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
         title: 'Evaluation started',
         description: 'The evaluation is now being processed. Results will update automatically.',
       });
+      
+      // Invalidate all relevant queries to ensure fresh data
+      // Main evaluations list
       queryClient.invalidateQueries({ queryKey: ['/api/evaluations'] });
+      
+      // This specific evaluation
       queryClient.invalidateQueries({ queryKey: ['/api/evaluations', evaluationId] });
+      
+      // Results for this evaluation
+      queryClient.invalidateQueries({ queryKey: ['/api/evaluations', evaluationId, 'results'] });
     },
     onError: () => {
       toast({

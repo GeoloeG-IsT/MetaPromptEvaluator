@@ -30,8 +30,11 @@ export default function Evaluations() {
   const [selectedEvaluation, setSelectedEvaluation] = useState<Evaluation | undefined>(undefined);
   const { toast } = useToast();
   
+  // Fetch evaluations with polling enabled when there are in-progress evaluations
   const { data: evaluations, isLoading } = useQuery<Evaluation[]>({
     queryKey: ["/api/evaluations"],
+    // Poll every 3 seconds to check for updates on in-progress evaluations
+    refetchInterval: 3000,
   });
   
   // Fetch prompts for the dialog
@@ -78,13 +81,19 @@ export default function Evaluations() {
       
       return await apiRequest('POST', `/api/evaluations/${data.id}/start`, { userPrompt });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       toast({
         title: 'Evaluation started',
         description: 'The evaluation is now being processed. Results will update automatically.',
       });
-      // Invalidate the evaluations list query to show updated status
+      
+      // Invalidate all relevant queries to ensure fresh data
+      // Main evaluations list
       queryClient.invalidateQueries({ queryKey: ['/api/evaluations'] });
+      
+      // This specific evaluation and its results
+      queryClient.invalidateQueries({ queryKey: ['/api/evaluations', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/evaluations', variables.id, 'results'] });
     },
     onError: () => {
       toast({
