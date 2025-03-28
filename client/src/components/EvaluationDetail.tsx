@@ -490,14 +490,20 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
                     >
                       <TableCell className="font-medium">{result.datasetItemId}</TableCell>
                       <TableCell>
-                        {datasetItem?.inputType === 'text' ? (
-                          <div className="max-w-xs truncate">{datasetItem.inputText}</div>
-                        ) : datasetItem?.inputImage ? (
-                          <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
+                        {/* Text input type */}
+                        {datasetItem?.inputType === 'text' && (
+                          <div className="line-clamp-2 text-sm">
+                            {datasetItem.inputText}
+                          </div>
+                        )}
+                        
+                        {/* Image input type */}
+                        {datasetItem?.inputType === 'image' && datasetItem.inputImage && (
+                          <div className="h-12 w-12 relative">
                             <img 
                               src={datasetItem.inputImage} 
                               alt="Input" 
-                              className="max-h-full max-w-full object-cover"
+                              className="h-full w-full object-cover rounded"
                               onError={(e) => {
                                 e.currentTarget.src = '';
                                 const parent = e.currentTarget.parentElement;
@@ -507,7 +513,23 @@ export default function EvaluationDetail({ evaluationId, onBack, onEdit }: Evalu
                               }}
                             />
                           </div>
-                        ) : (
+                        )}
+                        
+                        {/* PDF input type */}
+                        {datasetItem?.inputType === 'pdf' && datasetItem.inputPdf && (
+                          <div className="flex items-center">
+                            <span className="material-icons text-red-600 mr-2 text-lg">
+                              picture_as_pdf
+                            </span>
+                            <div className="text-sm font-medium">{datasetItem.inputPdf}</div>
+                          </div>
+                        )}
+                        
+                        {/* No input data case */}
+                        {(!datasetItem?.inputType || 
+                          (datasetItem.inputType === 'image' && !datasetItem.inputImage) ||
+                          (datasetItem.inputType === 'pdf' && !datasetItem.inputPdf) ||
+                          (datasetItem.inputType === 'text' && !datasetItem.inputText)) && (
                           <div className="text-sm text-gray-500">No input data</div>
                         )}
                       </TableCell>
